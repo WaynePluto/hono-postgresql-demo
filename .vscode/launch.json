@@ -1,0 +1,52 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Jest Tests",
+      "program": "${workspaceFolder}/node_modules/jest/bin/jest.js", // 或者直接指向 jest
+      "args": [
+        "--runInBand", // 关键：强制串行执行测试，便于调试
+        "--watchAll=false", // 确保不是监视模式
+        "--no-cache" // 避免缓存导致代码变化未生效
+        // 可以添加更多 Jest 参数，例如 "--testNamePattern=<测试名称模式>" 来过滤特定测试
+      ],
+      "env": {
+        "NODE_OPTIONS": "--experimental-vm-modules", // 替换 cross-env NODE_OPTIONS=--experimental-vm-modules
+        // dotenv -e .env.dev 的功能：Jest 通常会自动加载 .env 文件，但指定自定义路径可能需要额外配置
+        // 如果 jest 未自动加载 .env.dev，可以考虑使用 jest 的 `testEnvironmentOptions` 或 `setupFiles` 配置
+      },
+      "envFile": "${workspaceFolder}/.env.dev", // 使用 VSCode 的 envFile 属性直接注入环境变量，这通常比使用 dotenv 包更简单
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "windows": {
+        "program": "${workspaceFolder}/node_modules/jest/bin/jest" // Windows 路径可能需要的调整
+      },
+      // 如果你的项目是 TypeScript，且使用了 ts-jest 或类似转换器，通常不需要在调试 Jest 时额外指定 --import=tsx
+      // Jest 的转换器会处理 TypeScript 文件
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Launch Program",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--env-file=.env.dev",
+        "--import=tsx",
+        "--watch-path=./src"
+      ],
+      "program": "${workspaceFolder}/src/app.ts",
+      "sourceMaps": true
+    }
+  ]
+}
