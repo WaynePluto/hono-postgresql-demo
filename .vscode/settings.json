@@ -3,5 +3,7 @@
   "editor.codeActionsOnSave": {
     "source.organizeImports": "always",
     "source.fixAll": "always"
-  }
+  },
+  "turboConsoleLog.logMessagePrefix": "===",
+  "turboConsoleLog.logFunction": "c.var.logger.info"
 }

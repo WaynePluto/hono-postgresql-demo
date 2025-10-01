@@ -6,7 +6,7 @@ import { z } from "zod/v4";
 import { Model } from "./model";
 
 export const templateApp = new Hono()
-  .post("/", zValidator("json", z.strictObject({ open_id: z.string() }), validateFailHandler), async c => {
+  .post("/", zValidator("json", z.strictObject({ name: z.string() }), validateFailHandler), async c => {
     const data = c.req.valid("json");
     const queryConf: pg.QueryConfig = {
       text: `INSERT INTO template (data) VALUES ($1)`,

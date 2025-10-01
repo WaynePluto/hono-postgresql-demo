@@ -25,7 +25,7 @@ describe("test template module", () => {
   it("test add row", async () => {
     const res = await client.index.$post({
       json: {
-        open_id: "test_open_id",
+        name: "Tom",
       },
     });
     expect(res.ok).toBe(true);
@@ -55,7 +55,7 @@ describe("test template module", () => {
     if (res.ok) {
       const resJSON = await res.json();
       expect(resJSON.code).toBe(200);
-      expect(resJSON.data.data.open_id).toEqual("test_open_id");
+      expect(resJSON.data.data.name).toEqual("Tom");
     }
   });
 
@@ -63,7 +63,7 @@ describe("test template module", () => {
     const res = await client[":id"].$put({
       param: { id: id.toString() },
       json: {
-        name: "test_open_id_updated",
+        name: "Jerry",
       },
     });
     expect(res.ok).toBe(true);
@@ -71,6 +71,16 @@ describe("test template module", () => {
       const resJSON = await res.json();
       expect(resJSON.code).toBe(200);
       expect(resJSON.data).toBe(1);
+    }
+  });
+
+  it("test get by id updated", async () => {
+    const res = await client[":id"].$get({ param: { id: id.toString() } });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      const resJSON = await res.json();
+      expect(resJSON.code).toBe(200);
+      expect(resJSON.data.data.name).toEqual("Jerry");
     }
   });
 

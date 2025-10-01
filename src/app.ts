@@ -8,8 +8,9 @@ import { createLogger, createLoggerMiddleware } from "./middlewares/logger";
 import { createPgMiddleware } from "./middlewares/pg";
 import { templateApp } from "./modules/template";
 import { errorHandler } from "./utils/error-handler";
+import { initDB } from "./utils/init-db";
 
-const boot = () => {
+const boot = async () => {
   const { PORT } = process.env;
   const app = new Hono();
 
@@ -24,6 +25,8 @@ const boot = () => {
 
   const pgPool = new Pool();
   app.use(createPgMiddleware(pgPool));
+
+  await initDB(pgPool);
 
   app.route("/template", templateApp);
 
