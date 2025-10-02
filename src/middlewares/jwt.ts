@@ -29,7 +29,7 @@ export const createJwtMiddleware = (secret = "jwt") => {
     c.set("jwtSign", jwtSign);
     c.set("jwtVerify", jwtVerify);
 
-    const ignoreRoute = /\/auth\/(login|register|refresh)$/; // 添加refresh到忽略路由
+    const ignoreRoute = /^\/auth\/(login|register|refresh)$/; // 添加refresh到忽略路由
     if (ignoreRoute.test(c.req.path)) {
       await next();
       return;

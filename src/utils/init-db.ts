@@ -66,7 +66,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_user_email ON "user" ((data->>'email')) WH
 function createAdminUser(pool: Pool) {
   const adminUser = {
     username: "administrator",
-    password: "password",
+    password: "e10adc3949ba59abbe56e057f20f883e",
     email: "admin@example.com",
     nickname: "管理员",
     role_ids: ["admin"],

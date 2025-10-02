@@ -12,7 +12,7 @@ import { userApp } from "./modules/user";
 import { errorHandler } from "./utils/error-handler";
 import { initDB } from "./utils/init-db";
 
-const boot = async () => {
+const boot = () => {
   const { PORT } = process.env;
   const app = new Hono();
 
@@ -26,9 +26,9 @@ const boot = async () => {
   app.use(createJwtMiddleware());
 
   const pgPool = new Pool();
-  app.use(createPgMiddleware(pgPool));
+  initDB(pgPool);
 
-  await initDB(pgPool);
+  app.use(createPgMiddleware(pgPool));
 
   // 注册路由
   app.route("/auth", authApp);
@@ -63,6 +63,9 @@ const boot = async () => {
       process.exit(0);
     });
   });
+
+  return app;
 };
 
-boot();
+const app = boot();
+export type App = typeof app;
