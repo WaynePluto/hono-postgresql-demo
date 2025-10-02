@@ -3,9 +3,10 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
 import { Pool } from "pg";
-import { createJwtMiddlware } from "./middlewares/jwt";
+import { createJwtMiddleware } from "./middlewares/jwt";
 import { createLogger, createLoggerMiddleware } from "./middlewares/logger";
 import { createPgMiddleware } from "./middlewares/pg";
+import { authApp } from "./modules/auth";
 import { templateApp } from "./modules/template";
 import { errorHandler } from "./utils/error-handler";
 import { initDB } from "./utils/init-db";
@@ -21,13 +22,15 @@ const boot = async () => {
   const logger = createLogger();
   app.use(createLoggerMiddleware(logger));
 
-  app.use(createJwtMiddlware());
+  app.use(createJwtMiddleware());
 
   const pgPool = new Pool();
   app.use(createPgMiddleware(pgPool));
 
   await initDB(pgPool);
 
+  // 注册路由
+  app.route("/auth", authApp);
   app.route("/template", templateApp);
 
   app.onError(errorHandler);

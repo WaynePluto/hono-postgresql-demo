@@ -12,5 +12,7 @@ declare module "hono" {
     logger: winston.Logger;
     requestId: string;
     jwtPayload: JWTPayload;
+    jwtSign: (payload: JWTPayload) => { token: string; refresh_token: string };
+    jwtVerify: (token: string) => Promise<{ err: any; decoded: any }>;
   }
 }

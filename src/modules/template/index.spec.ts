@@ -1,4 +1,5 @@
 import { createPgMiddleware } from "@/middlewares/pg";
+import { initDB } from "@/utils/init-db";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { hc } from "hono/client";
@@ -16,6 +17,10 @@ describe("test template module", () => {
   const server = serve({ fetch: app.fetch, port: Number(PORT) });
 
   const client = hc<TemplateApp>(`http://localhost:${PORT}/template`);
+
+  beforeAll(async () => {
+    await initDB(pgPool);
+  });
 
   afterAll(() => {
     server.close();
