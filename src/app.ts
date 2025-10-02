@@ -8,6 +8,7 @@ import { createLogger, createLoggerMiddleware } from "./middlewares/logger";
 import { createPgMiddleware } from "./middlewares/pg";
 import { authApp } from "./modules/auth";
 import { templateApp } from "./modules/template";
+import { userApp } from "./modules/user";
 import { errorHandler } from "./utils/error-handler";
 import { initDB } from "./utils/init-db";
 
@@ -31,6 +32,7 @@ const boot = async () => {
 
   // 注册路由
   app.route("/auth", authApp);
+  app.route("/users", userApp);
   app.route("/template", templateApp);
 
   app.onError(errorHandler);
