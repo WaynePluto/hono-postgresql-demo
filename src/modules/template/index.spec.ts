@@ -42,13 +42,13 @@ describe("test template module", () => {
     }
   });
 
-  let id = 0;
+  let id = "";
   it("test find page", async () => {
     const res = await client.page.$post({
       json: {
         page: 1,
         pageSize: 10,
-        keyword: "Tom",
+        name: "Tom",
       },
     });
     expect(res.ok).toBe(true);
@@ -57,7 +57,7 @@ describe("test template module", () => {
       expect(resJSON.code).toBe(200);
       expect(resJSON.data.total).toBeGreaterThan(0);
       expect(resJSON.data.list.length).toBeGreaterThan(0);
-      id = resJSON.data.list[0].id;
+      id = resJSON.data.list[0].id ?? "";
     }
   });
 

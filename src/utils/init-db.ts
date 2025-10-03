@@ -17,7 +17,7 @@ export async function initDB(pool: Pool) {
 function createTable(pool: Pool, tableName: string) {
   const initSql = `-- 创建表
 CREATE TABLE IF NOT EXISTS "${tableName}" (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    id UUID DEFAULT uuidv7() PRIMARY KEY,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     data JSONB
