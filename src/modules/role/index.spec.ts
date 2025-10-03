@@ -38,7 +38,7 @@ describe("test role module", () => {
         name: "Administrator",
         code: "admin",
         description: "Administrator role with full permissions",
-        permission_ids: ["perm1", "perm2"],
+        permission_codes: ["perm1", "perm2"],
       },
     });
     expect(res.ok).toBe(true);
@@ -78,7 +78,7 @@ describe("test role module", () => {
       expect(resJSON.data.name).toEqual("Administrator");
       expect(resJSON.data.code).toEqual("admin");
       expect(resJSON.data.description).toEqual("Administrator role with full permissions");
-      expect(resJSON.data.permission_ids).toEqual(["perm1", "perm2"]);
+      expect(resJSON.data.permission_codes).toEqual(["perm1", "perm2"]);
     }
   });
 
@@ -89,7 +89,7 @@ describe("test role module", () => {
         name: "Super Administrator",
         code: "super_admin",
         description: "Super administrator role with full permissions",
-        permission_ids: ["perm1", "perm2", "perm3"],
+        permission_codes: ["perm1", "perm2", "perm3"],
       },
     });
     expect(res.ok).toBe(true);
@@ -110,7 +110,7 @@ describe("test role module", () => {
       expect(resJSON.data.name).toEqual("Super Administrator");
       expect(resJSON.data.code).toEqual("super_admin");
       expect(resJSON.data.description).toEqual("Super administrator role with full permissions");
-      expect(resJSON.data.permission_ids).toEqual(["perm1", "perm2", "perm3"]);
+      expect(resJSON.data.permission_codes).toEqual(["perm1", "perm2", "perm3"]);
     }
   });
 

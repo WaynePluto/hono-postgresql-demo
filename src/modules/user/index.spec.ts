@@ -58,7 +58,7 @@ describe("test user module", () => {
           password: "hashedpassword123",
           email: "test@example.com",
           nickname: "Test User",
-          role_ids: ["role1", "role2"],
+          role_codes: ["role1", "role2"],
         },
       },
       {
@@ -145,7 +145,7 @@ describe("test user module", () => {
       expect(resJSON.data.username).toBe("testuser");
       expect(resJSON.data.email).toBe("test@example.com");
       expect(resJSON.data.nickname).toBe("Test User");
-      expect(resJSON.data.role_ids).toEqual(["role1", "role2"]);
+      expect(resJSON.data.role_codes).toEqual(["role1", "role2"]);
     }
   });
 
@@ -156,6 +156,7 @@ describe("test user module", () => {
         json: {
           nickname: "Updated User",
           email: "updated@example.com",
+          role_codes: ["role1", "role2", "role3"],
         },
       },
       {
@@ -191,6 +192,7 @@ describe("test user module", () => {
       expect(resJSON.code).toBe(200);
       expect(resJSON.data.nickname).toBe("Updated User");
       expect(resJSON.data.email).toBe("updated@example.com");
+      expect(resJSON.data.role_codes).toEqual(["role1", "role2", "role3"]);
     }
   });
 

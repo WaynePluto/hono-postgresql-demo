@@ -7,7 +7,7 @@ export type User = {
     password: string;
     email?: string;
     nickname?: string;
-    role_ids?: string[];
+    role_codes?: string[];
   };
 };
 

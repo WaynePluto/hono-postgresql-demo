@@ -6,7 +6,7 @@ export type Role = {
     name: string;
     code: string;
     description?: string;
-    permission_ids?: string[];
+    permission_codes?: string[];
   };
 };
 
@@ -18,9 +18,7 @@ export type RoleDetailResponse = {
   id: string;
   created_at: string;
   updated_at: string;
-} & Omit<Role["data"], "permission_ids"> & {
-    permission_ids: string[];
-  };
+} & Role["data"];
 
 export type RoleListResponse = {
   total: number;
