@@ -4,7 +4,15 @@ export async function initDB(pool: Pool) {
   await createTable(pool, "template");
   await createTable(pool, "user"); // 添加用户表
   await createUserIndex(pool);
+  // 添加管理员账号
   await createAdminUser(pool);
+
+  // 添加权限表和角色表
+  await createTable(pool, "permission");
+  await createPermissionIndex(pool);
+  await createTable(pool, "role");
+  await createRoleIndex(pool);
+
   return;
 }
 
@@ -57,6 +65,24 @@ function createUserIndex(pool: Pool) {
 CREATE UNIQUE INDEX IF NOT EXISTS idx_user_username ON "user" ((data->>'username'));
 -- 为邮箱创建唯一索引（如果存在）
 CREATE UNIQUE INDEX IF NOT EXISTS idx_user_email ON "user" ((data->>'email')) WHERE data->>'email' IS NOT NULL;
+`);
+}
+
+function createPermissionIndex(pool: Pool) {
+  return pool.query(`
+-- 为权限代码创建唯一索引
+CREATE UNIQUE INDEX IF NOT EXISTS idx_permission_code ON permission ((data->>'code'));
+-- 为权限名称创建索引以支持模糊查询
+CREATE INDEX IF NOT EXISTS idx_permission_name ON permission ((data->>'name'));
+`);
+}
+
+function createRoleIndex(pool: Pool) {
+  return pool.query(`
+-- 为角色代码创建唯一索引
+CREATE UNIQUE INDEX IF NOT EXISTS idx_role_code ON role ((data->>'code'));
+-- 为角色名称创建索引以支持模糊查询
+CREATE INDEX IF NOT EXISTS idx_role_name ON role ((data->>'name'));
 `);
 }
 

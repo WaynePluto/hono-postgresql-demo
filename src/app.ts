@@ -7,6 +7,8 @@ import { createJwtMiddleware } from "./middlewares/jwt";
 import { createLogger, createLoggerMiddleware } from "./middlewares/logger";
 import { createPgMiddleware } from "./middlewares/pg";
 import { authApp } from "./modules/auth";
+import { permissionApp } from "./modules/permission";
+import { roleApp } from "./modules/role";
 import { templateApp } from "./modules/template";
 import { userApp } from "./modules/user";
 import { errorHandler } from "./utils/error-handler";
@@ -34,6 +36,8 @@ const boot = () => {
   app.route("/auth", authApp);
   app.route("/user", userApp);
   app.route("/template", templateApp);
+  app.route("/permission", permissionApp);
+  app.route("/role", roleApp);
 
   app.onError(errorHandler);
 
@@ -67,5 +71,4 @@ const boot = () => {
   return app;
 };
 
-const app = boot();
-export type App = typeof app;
+boot();
