@@ -15,22 +15,33 @@ export const userApp = new Hono()
         page: z.number().min(1),
         pageSize: z.number().min(1),
         keyword: z.string().optional(),
+        username: z.string().optional(),
+        orderBy: z.enum(["created_at", "updated_at"]).optional(),
+        order: z.enum(["asc", "desc"]).optional(),
       }),
       validateFailHandler,
     ),
     async c => {
-      const { page, pageSize, keyword } = c.req.valid("json");
+      const { page, pageSize, keyword, username, orderBy = "created_at", order = "DESC" } = c.req.valid("json");
 
       let queryText = `SELECT COUNT(*) FROM "user" WHERE 1=1`;
       const countValues: any[] = [];
+      let paramIndex = 1;
 
       if (keyword) {
         queryText += ` AND (
-          data->>'username' ILIKE $1 OR 
-          data->>'email' ILIKE $1 OR 
-          data->>'nickname' ILIKE $1
+          data->>'username' ILIKE $${paramIndex} OR 
+          data->>'email' ILIKE $${paramIndex} OR 
+          data->>'nickname' ILIKE $${paramIndex}
         )`;
         countValues.push(`%${keyword}%`);
+        paramIndex++;
+      }
+
+      if (username) {
+        queryText += ` AND data->>'username' ILIKE $${paramIndex}`;
+        countValues.push(`%${username}%`);
+        paramIndex++;
       }
 
       const queryCountRes = await c.var.pool.query(queryText, countValues);
@@ -38,7 +49,7 @@ export const userApp = new Hono()
 
       let listQueryText = `SELECT * FROM "user" WHERE 1=1`;
       const listValues: any[] = [];
-      let paramIndex = 1;
+      paramIndex = 1;
 
       if (keyword) {
         listQueryText += ` AND (
@@ -50,7 +61,13 @@ export const userApp = new Hono()
         paramIndex++;
       }
 
-      listQueryText += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      if (username) {
+        listQueryText += ` AND data->>'username' ILIKE $${paramIndex}`;
+        listValues.push(`%${username}%`);
+        paramIndex++;
+      }
+
+      listQueryText += ` ORDER BY ${orderBy} ${order} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       listValues.push(pageSize, (page - 1) * pageSize);
 
       const listRes = await c.var.pool.query<User>(listQueryText, listValues);
@@ -61,8 +78,8 @@ export const userApp = new Hono()
         email: user.data.email,
         nickname: user.data.nickname,
         role_ids: user.data.role_ids || [],
-        created_at: user.created_at,
-        updated_at: user.updated_at,
+        created_at: user.created_at.toJSON(),
+        updated_at: user.updated_at.toJSON(),
       }));
 
       return c.json({
@@ -90,14 +107,14 @@ export const userApp = new Hono()
     }
 
     const user = res.rows[0];
-    const userDetail = {
+    const userDetail: UserDetailResponse = {
       id: user.id,
       username: user.data.username,
       email: user.data.email,
       nickname: user.data.nickname,
       role_ids: user.data.role_ids || [],
-      created_at: user.created_at,
-      updated_at: user.updated_at,
+      created_at: user.created_at.toJSON(),
+      updated_at: user.updated_at.toJSON(),
     };
 
     return c.json({ code: 200, msg: "success", data: userDetail });
@@ -110,7 +127,7 @@ export const userApp = new Hono()
       z.strictObject({
         username: z.string().min(1, "用户名不能为空"),
         password: z.string().min(6, "密码至少6位"),
-        email: z.string().email("邮箱格式不正确").optional(),
+        email: z.email("邮箱格式不正确").optional(),
         nickname: z.string().optional(),
         role_ids: z.array(z.string()).optional(),
       }),

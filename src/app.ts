@@ -32,7 +32,7 @@ const boot = () => {
 
   // 注册路由
   app.route("/auth", authApp);
-  app.route("/users", userApp);
+  app.route("/user", userApp);
   app.route("/template", templateApp);
 
   app.onError(errorHandler);

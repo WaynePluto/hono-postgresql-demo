@@ -11,40 +11,17 @@ export type User = {
   };
 };
 
-export type CreateUserRequest = {
-  username: string;
-  password: string;
-  email?: string;
-  nickname?: string;
-  role_ids?: string[];
-};
+export type CreateUserRequest = User["data"];
 
-export type UpdateUserRequest = {
-  username?: string;
-  email?: string;
-  nickname?: string;
-  role_ids?: string[];
-};
-
-export type UserListResponse = {
-  total: number;
-  list: Array<{
-    id: string;
-    username: string;
-    email?: string;
-    nickname?: string;
-    role_ids?: string[];
-    created_at: Date;
-    updated_at: Date;
-  }>;
-};
+export type UpdateUserRequest = Partial<User["data"]>;
 
 export type UserDetailResponse = {
   id: string;
-  username: string;
-  email?: string;
-  nickname?: string;
-  role_ids?: string[];
-  created_at: Date;
-  updated_at: Date;
+  created_at: string;
+  updated_at: string;
+} & Omit<User["data"], "password">;
+
+export type UserListResponse = {
+  total: number;
+  list: Array<Partial<UserDetailResponse>>;
 };
