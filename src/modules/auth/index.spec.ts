@@ -199,7 +199,7 @@ describe("test auth module", () => {
 
   it("test get current user info with non-existent user", async () => {
     // 创建一个不存在的用户ID的token
-    const jwtSign = createJwtSign("jwt");
+    const jwtSign = createJwtSign();
     const { token } = jwtSign({ userId: "391c3c08-b887-494a-83c7-edc12345eca8" });
 
     const meRes = await client.me.$get({

@@ -29,7 +29,7 @@ describe("test role module", () => {
         code: "test_admin",
         description: "Test administrator role with full permissions",
         permission_codes: ["perm1", "perm2"],
-        type: "custom"
+        type: "custom",
       },
     });
     expect(res.ok).toBe(true);
@@ -111,7 +111,7 @@ describe("test role module", () => {
       json: {
         name: "Test Role",
         code: "test_role",
-        type: "custom"
+        type: "custom",
       },
     });
 
@@ -122,7 +122,7 @@ describe("test role module", () => {
       json: {
         name: "Another Test Role",
         code: "test_role",
-        type: "custom"
+        type: "custom",
       },
     });
 
@@ -164,9 +164,8 @@ describe("test role module", () => {
     await pgPool.query(`DELETE FROM role WHERE data->>'code' = 'test_admin'`);
     await pgPool.query(`DELETE FROM role WHERE data->>'code' = 'test_role'`);
     await pgPool.query(`DELETE FROM role WHERE data->>'code' = 'test_super_admin'`);
-    
+
     server.close();
     await pgPool.end();
   });
-
 });

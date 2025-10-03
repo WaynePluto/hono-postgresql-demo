@@ -15,4 +15,7 @@ export default {
     "@/(.*)": "<rootDir>/src/$1",
   },
   testMatch: ["<rootDir>/src/**/*/*.spec.ts"],
+  // testMatch: [
+  //   "<rootDir>/src/modules/template/*.spec.ts",
+  // ],
 };

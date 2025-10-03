@@ -28,7 +28,7 @@ describe("test permission module", () => {
         name: "Test View Users",
         code: "test_users:view",
         description: "Test permission to view users",
-        type: "custom"
+        type: "custom",
       },
     });
     expect(res.ok).toBe(true);
@@ -107,7 +107,7 @@ describe("test permission module", () => {
       json: {
         name: "Test Permission",
         code: "test_permission",
-        type: "custom"
+        type: "custom",
       },
     });
 
@@ -118,7 +118,7 @@ describe("test permission module", () => {
       json: {
         name: "Another Test Permission",
         code: "test_permission",
-        type: "custom"
+        type: "custom",
       },
     });
 
@@ -160,9 +160,8 @@ describe("test permission module", () => {
     await pgPool.query(`DELETE FROM permission WHERE data->>'code' = 'test_users:view'`);
     await pgPool.query(`DELETE FROM permission WHERE data->>'code' = 'test_permission'`);
     await pgPool.query(`DELETE FROM permission WHERE data->>'code' = 'test_users:manage'`);
-    
+
     server.close();
     await pgPool.end();
   });
-
 });

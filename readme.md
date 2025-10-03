@@ -3,8 +3,8 @@
 > 使用 AI 构建通用数据表，提示语：
 
 ```plain
-我要使用pg 17数据库创建一个表，有四个字段，分别是
-自增id（identity类型），
+我要使用pg 18数据库创建一个表，有四个字段，分别是
+id（uuidv7类型），
 创建时间（带时区的时间戳），
 更新时间（带时区的时间戳），
 data（jsonb类型）；
@@ -138,152 +138,25 @@ pnpm create @eslint/config
 
 > .env,.env.dev
 
-```plain
-IS_DEV=true
-PORT=3000
-PGUSER=postgres
-PGPASSWORD=0000
-PGHOST=localhost
-PGPORT=5432
-PGDATABASE=db_demo
-```
-
 ### 2.4 打包配置
 
 > esbuild.config.mjs
-
-```javascript
-import console from "console";
-import esbuild from "esbuild";
-import process from "process";
-
-const options = {
-  entryPoints: ["src/app.ts"],
-  outdir: "dist",
-  sourcemap: true,
-  bundle: true,
-  platform: "node",
-  minify: true,
-  alias: {
-    "@": "src",
-  },
-};
-
-esbuild.build(options).catch(err => {
-  console.error(err);
-  process.exit(1);
-});
-```
 
 ### 2.5 eslint 配置
 
 > eslint.config.mjs
 
-```javascript
-import js from "@eslint/js";
-import globals from "globals";
-import tseslint from "typescript-eslint";
-import { defineConfig } from "eslint/config";
-
-export default defineConfig([
-  { files: ["**/*.{js,mjs,cjs,ts,mts,cts}"], plugins: { js }, extends: ["js/recommended"] },
-  { files: ["**/*.{js,mjs,cjs,ts,mts,cts}"], languageOptions: { globals: globals.browser } },
-  tseslint.configs.recommended,
-  {
-    rules: {
-      "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-empty-object-type": "off",
-      "@typescript-eslint/no-unused-vars": "warn",
-    },
-  },
-]);
-```
-
 ### 2.6 jest 单元测试配置
 
 > jest.config.mjs
 
-```javascript
-/**
- * @type {import('jest').Config}
- */
-export default {
-  clearMocks: true,
-  collectCoverage: false,
-  coverageDirectory: "coverage",
-  coverageProvider: "v8",
-  // ts-jest与@swc/jest二选一
-  // preset: 'ts-jest',
-  transform: {
-    "^.+\\.(t|j)s$": "@swc/jest",
-  },
-  moduleNameMapper: {
-    "@/(.*)": "<rootDir>/src/$1",
-  },
-  testMatch: ["<rootDir>/src/**/*/*.spec.ts"],
-};
-```
-
 ### 2.7 package.json 脚本设置
 
-```json
-{
-  "dev": "node --env-file=.env.dev --import=tsx --watch-path=./src src/app.ts",
-  "test": "cross-env NODE_OPTIONS=--experimental-vm-modules dotenv -e .env.dev jest",
-  "lint": "eslint src --fix",
-  "build": "npm run clear && node esbuild.config.mjs",
-  "clear": "rimraf dist",
-  "start": "node --enable-source-maps --env-file=.env ./dist/app.js",
-  "create:type": "tsc --declaration --emitDeclarationOnly"
-}
-```
-
 ### 2.8 tsconfig.json
-
-```json
-{
-  "compilerOptions": {
-    "target": "es2016",
-    "module": "commonjs",
-    "esModuleInterop": true,
-    "noImplicitAny": false,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "declaration": true,
-    "declarationDir": "router-type",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
-  },
-  "include": ["src"],
-  "exclude": ["node_modules"]
-}
-```
 
 ### 2.9 上下文类型配置
 
 > src/types/hono.d.ts
-
-```typescript
-import "hono";
-import type { Pool } from "pg";
-import type winston from "winston";
-
-declare interface JWTPayload {
-  userId: string;
-}
-
-declare module "hono" {
-  interface ContextVariableMap {
-    pool: Pool;
-    logger: winston.Logger;
-    requestId: string;
-    jwtPayload: JWTPayload;
-  }
-}
-```
 
 ### 2.10 通用中间件
 
@@ -291,143 +164,9 @@ declare module "hono" {
 
 #### jwt
 
-```typescript
-import { JWTPayload } from "@/types/hono";
-import { createMiddleware } from "hono/factory";
-import jwt from "jsonwebtoken";
-export const createJwtSign = (secret: string) => (payload: JWTPayload) => {
-  const token = jwt.sign(payload, secret, { expiresIn: "5m" });
-  const refresh_token = jwt.sign(payload, secret, { expiresIn: "7d" });
-
-  return { token, refresh_token };
-};
-
-export const createJwtVerify =
-  (secret: string) =>
-  (token: string): Promise<{ err: jwt.VerifyErrors | null; decoded: any }> => {
-    return new Promise(resolve => {
-      jwt.verify(token, secret, (err, decoded) => {
-        resolve({ err, decoded });
-      });
-    });
-  };
-
-export const createJwtMiddlware = (secret = "jwt") => {
-  const { IS_DEV } = process.env;
-  const jwtSign = createJwtSign(secret);
-  const jwtVerify = createJwtVerify(secret);
-  return createMiddleware(async (c, next) => {
-    const ignoreRoute = /\/login$|\/register/;
-    if (ignoreRoute.test(c.req.url)) {
-      await next();
-      return;
-    }
-
-    const token = c.req.header("Authorization")?.split(" ")[1];
-    const data = IS_DEV ? jwtSign({ userId: "123" }) : null;
-    if (token) {
-      const { err, decoded } = await jwtVerify(token);
-      if (err) {
-        return c.json({ code: 401, msg: "token过期", data });
-      } else {
-        c.set("jwtPayload", decoded);
-        await next();
-      }
-    } else {
-      return c.json({ code: 401, msg: "没有token", data });
-    }
-  });
-};
-```
-
 #### logger
 
-```typescript
-import { createMiddleware } from "hono/factory";
-import winston from "winston";
-import DailyRotateFile from "winston-daily-rotate-file";
-import { getConnInfo } from "@hono/node-server/conninfo";
-
-export const createLogger = () => {
-  const { IS_DEV } = process.env;
-
-  const transport: DailyRotateFile = new DailyRotateFile({
-    auditFile: "logs/log-audit.json",
-    filename: "logs/%DATE%.log",
-    datePattern: "YYYY-MM-DD",
-    zippedArchive: false,
-    maxSize: "20m",
-    maxFiles: "30d",
-  });
-
-  const logger = winston.createLogger({
-    level: "info",
-    format: winston.format.combine(
-      ...[
-        winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
-        winston.format.printf(i => `>${i.level}:${i.timestamp}: ${JSON.stringify(i.message)}\n`),
-      ],
-    ),
-    transports: IS_DEV ? [new winston.transports.Console()] : [transport],
-  });
-
-  return logger;
-};
-
-export const createLoggerMiddleware = (logger = createLogger()) => {
-  return createMiddleware(async (c, next) => {
-    try {
-      c.set("logger", logger);
-      const startTime = Date.now();
-      await next();
-      const { url, method } = c.req;
-      const info = getConnInfo(c).remote;
-      const connect = `${info.addressType} ${info.address}:${info.port}`;
-      const requestId = c.var.requestId;
-      if (c.req.header("Content-Type") === "application/json") {
-        const body = await c.req.json();
-        logger.info({
-          requestId,
-          body,
-        });
-      }
-      if (c.res.headers.get("Content-Type") === "application/json") {
-        const res = await c.res.clone().json();
-        logger.info({
-          requestId,
-          code: res.code,
-        });
-      }
-      const time = `${Date.now() - startTime}ms`;
-      logger.info({
-        requestId,
-        url,
-        method,
-        connect,
-        param: c.req.param(),
-        query: c.req.query(),
-        time,
-      });
-    } catch (error: any) {
-      logger.error({ name: "logger middleware error:", error: error.toString() });
-    }
-  });
-};
-```
-
 #### pg
-
-```typescript
-import { createMiddleware } from "hono/factory";
-import { Pool } from "pg";
-
-export const createPgMiddleware = (pool: Pool) => {
-  return createMiddleware(async (c, next) => {
-    c.set("pool", pool);
-    await next();
-  });
-};
-```
 
 ### 2.11 工具函数
 
@@ -436,90 +175,11 @@ export const createPgMiddleware = (pool: Pool) => {
 
 #### 校验参数函数
 
-```typescript
-import { Context } from "hono";
-import { HTTPException } from "hono/http-exception";
-
-export const validateFailHandler = (result: any, c: Context<any, string, {}>) => {
-  if (!result.success) {
-    try {
-      const errMessages: Array<{ message: string; path: string[] }> = JSON.parse(result.error.message);
-      const msg = errMessages.map(el => `参数${el.path.join(",")}错误: ${el.message}`).join("; ");
-      return c.json({ code: 400, msg: msg, info: errMessages });
-    } catch (error) {
-      console.log("🚀 ~ error:", error);
-      throw new HTTPException(500, { message: "生成参数校验信息失败" });
-    }
-  }
-};
-```
-
 > 新建 error-handler.ts
 
 #### 错误处理函数
 
-```typescript
-import type { ErrorHandler } from "hono";
-
-export const errorHandler: ErrorHandler = (err, c) => {
-  c.var.logger.error({ name: err.name, msg: err.message, stack: err.stack });
-  return c.json({ code: 500, msg: err.message });
-};
-```
-
 #### 初始化表
-
-```typescript
-import { Pool } from "pg";
-
-export async function initDB(pool: Pool) {
-  await createTable(pool, "template");
-  return;
-}
-
-/**
- * Create table if not exists
- * @param pool
- * @param tableName
- * @returns
- */
-function createTable(pool: Pool, tableName: string) {
-  const initSql = `-- 创建表
-CREATE TABLE IF NOT EXISTS ${tableName} (
-    id UUID DEFAULT uuidv7() PRIMARY KEY,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    data JSONB
-);
-
--- 创建触发器函数
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- 创建触发器
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_trigger
-        WHERE tgname = 'trigger_update_updated_at'
-          AND tgrelid = '${tableName}'::regclass
-    ) THEN
-        CREATE TRIGGER trigger_update_updated_at
-            BEFORE UPDATE ON ${tableName}
-            FOR EACH ROW
-            EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-END $$;`;
-
-  return pool.query(initSql);
-}
-```
 
 ### 2.12 业务模块
 
@@ -528,250 +188,8 @@ END $$;`;
 
 #### model
 
-```typescript
-export type Model = {
-  id: number;
-  created_at: Date;
-  updated_at: Date;
-  data: {
-    open_id: string;
-    name?: string;
-  };
-};
-```
-
 #### index
-
-```typescript
-import { validateFailHandler } from "@/utils/validate-fail-handler";
-import { zValidator } from "@hono/zod-validator";
-import { Hono } from "hono";
-import pg from "pg";
-import { z } from "zod/v4";
-import { Model } from "./model";
-
-export const templateApp = new Hono()
-  .post("/", zValidator("json", z.strictObject({ open_id: z.string() }), validateFailHandler), async c => {
-    const data = c.req.valid("json");
-    const queryConf: pg.QueryConfig = {
-      text: `INSERT INTO template (data) VALUES ($1)`,
-      values: [data],
-    };
-    const res = await c.var.pool.query(queryConf);
-    return c.json({ code: 200, msg: "success", data: res.rowCount });
-  })
-  .get("/:id", zValidator("param", z.object({ id: z.string() }), validateFailHandler), async c => {
-    const { id } = c.req.valid("param");
-    const queryConf: pg.QueryConfig = {
-      text: `SELECT * FROM template WHERE id = $1`,
-      values: [id],
-    };
-    const res = await c.var.pool.query<Model>(queryConf);
-    return c.json({ code: 200, msg: "success", data: res.rows[0] });
-  })
-  .put(
-    "/:id",
-    zValidator("param", z.object({ id: z.string() }), validateFailHandler),
-    zValidator("json", z.object({ name: z.string() }), validateFailHandler),
-    async c => {
-      const { id } = c.req.valid("param");
-      const data = c.req.valid("json");
-      const queryConf: pg.QueryConfig = {
-        text: `UPDATE template SET data = jsonb_set(data, '{name}', $1) WHERE id = $2`,
-        values: [JSON.stringify(data.name), id],
-      };
-      const res = await c.var.pool.query(queryConf);
-      return c.json({ code: 200, msg: "success", data: res.rowCount });
-    },
-  )
-  .delete("/:id", zValidator("param", z.object({ id: z.string() }), validateFailHandler), async c => {
-    const { id } = c.req.valid("param");
-    const queryConf: pg.QueryConfig = {
-      text: `DELETE FROM template WHERE id = $1`,
-      values: [id],
-    };
-    const res = await c.var.pool.query(queryConf);
-    return c.json({ code: 200, msg: "success", data: res.rowCount });
-  })
-  .post(
-    "/page",
-    zValidator("json", z.object({ page: z.number().min(1), pageSize: z.number().min(1) }), validateFailHandler),
-
-    async c => {
-      const { page, pageSize } = c.req.valid("json");
-
-      const queryCountRes = await c.var.pool.query(`SELECT COUNT(*) FROM template`);
-      const total = Number(queryCountRes.rows[0].count);
-
-      const queryConf: pg.QueryConfig = {
-        // 分页查询 按id升序
-        text: `SELECT * FROM template ORDER BY id DESC LIMIT $1 OFFSET $2`,
-        values: [pageSize, (page - 1) * pageSize],
-      };
-      const res = await c.var.pool.query<Model>(queryConf);
-
-      return c.json({ code: 200, msg: "success", data: { total, list: res.rows } });
-    },
-  );
-
-export type TemplateApp = typeof templateApp;
-```
 
 #### index.spec.ts
 
-```typescript
-import { createPgMiddleware } from "@/middlewares/pg";
-import { serve } from "@hono/node-server";
-import { Hono } from "hono";
-import { hc } from "hono/client";
-import { Pool } from "pg";
-import { TemplateApp, templateApp } from "./index";
-
-describe("test template module", () => {
-  const { PORT } = process.env;
-  const app = new Hono();
-
-  const pgPool = new Pool();
-  app.use(createPgMiddleware(pgPool));
-  app.route("/template", templateApp);
-
-  const server = serve({ fetch: app.fetch, port: Number(PORT) });
-
-  const client = hc<TemplateApp>(`http://localhost:${PORT}/template`);
-
-  afterAll(() => {
-    server.close();
-    pgPool.end();
-  });
-
-  it("test add row", async () => {
-    const res = await client.index.$post({
-      json: {
-        open_id: "test_open_id",
-      },
-    });
-    expect(res.ok).toBe(true);
-    if (res.ok) {
-      const resJSON = await res.json();
-      expect(resJSON.code).toBe(200);
-      expect(resJSON.data).toBe(1);
-    }
-  });
-
-  let id = 0;
-  it("test find page", async () => {
-    const res = await client.page.$post({ json: { page: 1, pageSize: 1 } });
-    expect(res.ok).toBe(true);
-    if (res.ok) {
-      const resJSON = await res.json();
-      expect(resJSON.code).toBe(200);
-      expect(resJSON.data.total).toBeGreaterThan(0);
-      expect(resJSON.data.list.length).toBeLessThanOrEqual(1);
-      id = resJSON.data.list[0].id;
-    }
-  });
-
-  it("test get by id", async () => {
-    const res = await client[":id"].$get({ param: { id: id.toString() } });
-    expect(res.ok).toBe(true);
-    if (res.ok) {
-      const resJSON = await res.json();
-      expect(resJSON.code).toBe(200);
-      expect(resJSON.data.data.open_id).toEqual("test_open_id");
-    }
-  });
-
-  it("test update by id", async () => {
-    const res = await client[":id"].$put({
-      param: { id: id.toString() },
-      json: {
-        name: "test_open_id_updated",
-      },
-    });
-    expect(res.ok).toBe(true);
-    if (res.ok) {
-      const resJSON = await res.json();
-      expect(resJSON.code).toBe(200);
-      expect(resJSON.data).toBe(1);
-    }
-  });
-
-  it("test delete by id", async () => {
-    const res = await client[":id"].$delete({ param: { id: id.toString() } });
-    expect(res.ok).toBe(true);
-    if (res.ok) {
-      const resJSON = await res.json();
-      expect(resJSON.code).toBe(200);
-      expect(resJSON.data).toBe(1);
-    }
-  });
-});
-```
-
 ### 2.13 项目入口 src/app.ts
-
-```typescript
-import { serve } from "@hono/node-server";
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { requestId } from "hono/request-id";
-import { Pool } from "pg";
-import { createJwtMiddlware } from "./middlewares/jwt";
-import { createLogger, createLoggerMiddleware } from "./middlewares/logger";
-import { createPgMiddleware } from "./middlewares/pg";
-import { templateApp } from "./modules/template";
-import { errorHandler } from "./utils/error-handler";
-import { initDB } from "./utils/init-db";
-
-const boot = async () => {
-  const { PORT } = process.env;
-  const app = new Hono();
-
-  app.use(cors());
-
-  app.use(requestId());
-
-  const logger = createLogger();
-  app.use(createLoggerMiddleware(logger));
-
-  app.use(createJwtMiddlware());
-
-  const pgPool = new Pool();
-  app.use(createPgMiddleware(pgPool));
-
-  await initDB(pgPool);
-
-  app.route("/template", templateApp);
-
-  app.onError(errorHandler);
-
-  const server = serve(
-    {
-      fetch: app.fetch,
-      port: Number(PORT),
-    },
-    info => {
-      logger.info(`Server is running on http://localhost:${info.port}`);
-    },
-  );
-
-  process.on("SIGINT", async () => {
-    await pgPool.end();
-    server.close();
-    process.exit(0);
-  });
-
-  process.on("SIGTERM", async () => {
-    await pgPool.end();
-    server.close(err => {
-      if (err) {
-        logger.error(err);
-        process.exit(1);
-      }
-      process.exit(0);
-    });
-  });
-};
-
-boot();
-```

@@ -6,7 +6,6 @@ import { Hono } from "hono";
 import { hc } from "hono/client";
 import pg, { Pool } from "pg";
 import { UserApp, userApp } from "./index";
-import { User } from "./model";
 
 describe("test user module", () => {
   const { PORT } = process.env;
@@ -23,22 +22,72 @@ describe("test user module", () => {
 
   let testUserId: string;
 
-  let token = "";
+  let testCustomUserId: string;
+
+  let customUserToken = "";
+  let guestUserToken = "";
 
   beforeAll(async () => {
     await initDB(pgPool);
 
-    const userCheck: pg.QueryConfig = {
-      text: `SELECT id, data FROM "user" WHERE data->>'username' = $1`,
-      values: ["administrator"],
+    // 创建测试用的自定义角色
+    const roleInsertQuery: pg.QueryConfig = {
+      text: `INSERT INTO "role" (data) VALUES ($1) RETURNING id`,
+      values: [
+        {
+          name: "用户管理测试角色",
+          code: "user_management_test_role",
+          description: "用于测试用户管理权限的角色",
+          permission_codes: ["user:create", "user:read", "user:update", "user:delete", "user:list"],
+          type: "custom",
+        },
+      ],
     };
-    const queryRes = await pgPool.query<User>(userCheck);
+    await pgPool.query(roleInsertQuery);
 
-    const sign = createJwtSign("jwt");
-    const res = await sign({
-      userId: queryRes.rows[0].id,
+    // 创建测试用的自定义用户（拥有用户管理权限）
+    const customUserInsertQuery: pg.QueryConfig = {
+      text: `INSERT INTO "user" (data) VALUES ($1) RETURNING id`,
+      values: [
+        {
+          username: "test_custom_user",
+          password: "testpassword123",
+          email: "test_custom@example.com",
+          nickname: "Test Custom User",
+          role_codes: ["user_management_test_role"],
+        },
+      ],
+    };
+    const customUserRes = await pgPool.query(customUserInsertQuery);
+    testCustomUserId = customUserRes.rows[0].id;
+
+    const sign = createJwtSign();
+    const customUserSignRes = await sign({
+      userId: testCustomUserId,
     });
-    token = res.token;
+    customUserToken = customUserSignRes.token;
+
+    // 创建访客用户（权限不足）
+    const guestUserInsertQuery: pg.QueryConfig = {
+      text: `INSERT INTO "user" (data) VALUES ($1) RETURNING id`,
+      values: [
+        {
+          username: "test_guest_user",
+          password: "testpassword123",
+          email: "test_guest@example.com",
+          nickname: "Test Guest User",
+          role_codes: ["guest"],
+        },
+      ],
+    };
+    const guestUserRes = await pgPool.query(guestUserInsertQuery);
+    const guestUserId = guestUserRes.rows[0].id;
+
+    // 为访客用户生成token
+    const guestUserSignRes = await sign({
+      userId: guestUserId,
+    });
+    guestUserToken = guestUserSignRes.token;
   });
 
   afterAll(async () => {
@@ -46,11 +95,17 @@ describe("test user module", () => {
     if (testUserId) {
       await pgPool.query(`DELETE FROM "user" WHERE id = $1`, [testUserId]);
     }
+    if (testCustomUserId) {
+      await pgPool.query(`DELETE FROM "user" WHERE id = $1`, [testCustomUserId]);
+    }
+    await pgPool.query(`DELETE FROM "user" WHERE data->>'username' = 'test_guest_user'`);
+    await pgPool.query(`DELETE FROM "role" WHERE data->>'code' = 'user_management_test_role'`);
+
     server.close();
     await pgPool.end();
   });
 
-  it("test create user", async () => {
+  it("test create user with custom role", async () => {
     const res = await client.index.$post(
       {
         json: {
@@ -63,7 +118,7 @@ describe("test user module", () => {
       },
       {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${customUserToken}`,
         },
       },
     );
@@ -88,7 +143,7 @@ describe("test user module", () => {
       },
       {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${customUserToken}`,
         },
       },
     );
@@ -101,7 +156,7 @@ describe("test user module", () => {
     }
   });
 
-  it("test get user list", async () => {
+  it("test get user list with custom role", async () => {
     const res = await client.page.$post(
       {
         json: {
@@ -111,7 +166,7 @@ describe("test user module", () => {
       },
       {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${customUserToken}`,
         },
       },
     );
@@ -125,14 +180,14 @@ describe("test user module", () => {
     }
   });
 
-  it("test get user by id", async () => {
+  it("test get user by id with custom role", async () => {
     const res = await client[":id"].$get(
       {
         param: { id: testUserId },
       },
       {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${customUserToken}`,
         },
       },
     );
@@ -149,7 +204,7 @@ describe("test user module", () => {
     }
   });
 
-  it("test update user", async () => {
+  it("test update user with custom role", async () => {
     const res = await client[":id"].$put(
       {
         param: { id: testUserId },
@@ -161,7 +216,7 @@ describe("test user module", () => {
       },
       {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${customUserToken}`,
         },
       },
     );
@@ -174,14 +229,14 @@ describe("test user module", () => {
     }
   });
 
-  it("test get updated user", async () => {
+  it("test get updated user with custom role", async () => {
     const res = await client[":id"].$get(
       {
         param: { id: testUserId },
       },
       {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${customUserToken}`,
         },
       },
     );
@@ -196,14 +251,14 @@ describe("test user module", () => {
     }
   });
 
-  it("test delete user", async () => {
+  it("test delete user with custom role", async () => {
     const res = await client[":id"].$delete(
       {
         param: { id: testUserId },
       },
       {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${customUserToken}`,
         },
       },
     );
@@ -213,6 +268,129 @@ describe("test user module", () => {
       const resJSON = await res.json();
       expect(resJSON.code).toBe(200);
       expect(resJSON.data).toBe(1);
+    }
+  });
+
+  // 权限不足测试
+  it("test create user without permission", async () => {
+    const res = await client.index.$post(
+      {
+        json: {
+          username: "unauthorized_user",
+          password: "password123",
+          email: "unauthorized@example.com",
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${guestUserToken}`,
+        },
+      },
+    );
+
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      const resJSON = await res.json();
+      expect(resJSON.code).toBe(403);
+      expect(resJSON.msg).toBe("权限不足");
+    }
+  });
+
+  it("test get user list without permission", async () => {
+    const res = await client.page.$post(
+      {
+        json: {
+          page: 1,
+          pageSize: 10,
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${guestUserToken}`,
+        },
+      },
+    );
+
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      const resJSON = await res.json();
+      expect(resJSON.code).toBe(403);
+      expect(resJSON.msg).toBe("权限不足");
+    }
+  });
+
+  it("test get user by id without permission", async () => {
+    // 使用pg随机生成一个uuid
+    const uuidResult = await pgPool.query("SELECT gen_random_uuid() as uuid");
+    const randomUUID = uuidResult.rows[0].uuid;
+
+    const res = await client[":id"].$get(
+      {
+        param: { id: randomUUID },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${guestUserToken}`,
+        },
+      },
+    );
+
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      const resJSON = await res.json();
+      expect(resJSON.code).toBe(403);
+      expect(resJSON.msg).toBe("权限不足");
+    }
+  });
+
+  it("test update user without permission", async () => {
+    // 使用pg随机生成一个uuid
+    const uuidResult = await pgPool.query("SELECT gen_random_uuid() as uuid");
+    const randomUUID = uuidResult.rows[0].uuid;
+
+    const res = await client[":id"].$put(
+      {
+        param: { id: randomUUID },
+        json: {
+          nickname: "Updated Unauthorized User",
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${guestUserToken}`,
+        },
+      },
+    );
+
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      const resJSON = await res.json();
+      expect(resJSON.code).toBe(403);
+      expect(resJSON.msg).toBe("权限不足");
+    }
+  });
+
+  it("test delete user without permission", async () => {
+    // 使用pg随机生成一个uuid
+    const uuidResult = await pgPool.query("SELECT gen_random_uuid() as uuid");
+    const randomUUID = uuidResult.rows[0].uuid;
+
+    const res = await client[":id"].$delete(
+      {
+        param: { id: randomUUID },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${guestUserToken}`,
+        },
+      },
+    );
+
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      const resJSON = await res.json();
+      expect(resJSON.code).toBe(403);
+      expect(resJSON.msg).toBe("权限不足");
     }
   });
 });

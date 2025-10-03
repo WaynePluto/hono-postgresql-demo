@@ -4,11 +4,13 @@ import { Hono } from "hono";
 import pg from "pg";
 import { z } from "zod/v4";
 import type { CreateUserRequest, UpdateUserRequest, User, UserDetailResponse, UserListResponse } from "./model";
+import { createPermissionMiddleware } from "@/middlewares/permission";
 
 export const userApp = new Hono()
   // 获取用户列表
   .post(
     "/page",
+    createPermissionMiddleware("user:list"),
     zValidator(
       "json",
       z.object({
@@ -72,7 +74,10 @@ export const userApp = new Hono()
     },
   )
   // 获取单个用户详情
-  .get("/:id", zValidator("param", z.object({ id: z.string() }), validateFailHandler), async c => {
+  .get("/:id", 
+    createPermissionMiddleware("user:read"),
+    zValidator("param", z.object({ id: z.string() }), validateFailHandler), 
+    async c => {
     const { id } = c.req.valid("param");
 
     const queryConf: pg.QueryConfig = {
@@ -101,6 +106,7 @@ export const userApp = new Hono()
   // 创建新用户
   .post(
     "/",
+    createPermissionMiddleware("user:create"),
     zValidator(
       "json",
       z.strictObject({
@@ -151,6 +157,7 @@ export const userApp = new Hono()
   // 更新用户信息
   .put(
     "/:id",
+    createPermissionMiddleware("user:update"),
     zValidator("param", z.object({ id: z.string() }), validateFailHandler),
     zValidator(
       "json",
@@ -217,7 +224,10 @@ export const userApp = new Hono()
     },
   )
   // 删除用户
-  .delete("/:id", zValidator("param", z.object({ id: z.string() }), validateFailHandler), async c => {
+  .delete("/:id", 
+    createPermissionMiddleware("user:delete"),
+    zValidator("param", z.object({ id: z.string() }), validateFailHandler), 
+    async c => {
     const { id } = c.req.valid("param");
 
     // 检查用户是否存在

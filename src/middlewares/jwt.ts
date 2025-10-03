@@ -3,9 +3,11 @@ import { JWTPayload } from "@/types/hono";
 import { createMiddleware } from "hono/factory";
 import jwt from "jsonwebtoken";
 
-export const createJwtSign = (secret: string) => (payload: JWTPayload) => {
-  const token = jwt.sign(payload, secret, { expiresIn: "5m" });
-  const refresh_token = jwt.sign(payload, secret, { expiresIn: "7d" });
+export const createJwtSign = (secret?: string) => (payload: JWTPayload) => {
+  // 从环境变量获取JWT密钥，如果没有则使用默认值
+  const jwtSecret = secret || process.env.JWT_SECRET || "jwt";
+  const token = jwt.sign(payload, jwtSecret, { expiresIn: "5m" });
+  const refresh_token = jwt.sign(payload, jwtSecret, { expiresIn: "7d" });
 
   return { token, refresh_token };
 };
@@ -20,10 +22,13 @@ export const createJwtVerify =
     });
   };
 
-export const createJwtMiddleware = (secret = "jwt") => {
+export const createJwtMiddleware = (secret?: string) => {
+  // 从环境变量获取JWT密钥，如果没有则使用默认值
+  const jwtSecret = secret || process.env.JWT_SECRET || "jwt";
+
   const { IS_DEV } = process.env;
-  const jwtSign = createJwtSign(secret);
-  const jwtVerify = createJwtVerify(secret);
+  const jwtSign = createJwtSign(jwtSecret);
+  const jwtVerify = createJwtVerify(jwtSecret);
 
   return createMiddleware(async (c, next) => {
     c.set("jwtSign", jwtSign);
@@ -36,7 +41,8 @@ export const createJwtMiddleware = (secret = "jwt") => {
     }
 
     const token = c.req.header("Authorization")?.split(" ")[1];
-    const data = IS_DEV ? jwtSign({ userId: "123" }) : null;
+    // 开发环境下忽略token验证
+    const data = IS_DEV ? jwtSign({ userId: "123" }) : {};
     if (token) {
       const { err, decoded } = await jwtVerify(token);
       if (err) {

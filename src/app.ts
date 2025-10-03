@@ -15,7 +15,7 @@ import { errorHandler } from "./utils/error-handler";
 import { initDB } from "./utils/init-db";
 
 const boot = () => {
-  const { PORT } = process.env;
+  const { PORT, JWT_SECRET } = process.env;
   const app = new Hono();
 
   app.use(cors());
@@ -25,7 +25,7 @@ const boot = () => {
   const logger = createLogger();
   app.use(createLoggerMiddleware(logger));
 
-  app.use(createJwtMiddleware());
+  app.use(createJwtMiddleware(JWT_SECRET));
 
   const pgPool = new Pool();
   initDB(pgPool);
