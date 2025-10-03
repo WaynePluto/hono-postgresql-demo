@@ -20,12 +20,20 @@ describe("test user module", () => {
 
   const client = hc<UserApp>(`http://localhost:${PORT}/users`);
 
-  let testUserId: string;
+  /** 有权限的角色id */
+  let hasPermissionRoleId = "";
+  /** 有角色的用户id */
+  let hasRoleUserId = "";
+  /** 有权限的用户token */
+  let hasPermissionUserToken = "";
 
-  let testCustomUserId: string;
-
-  let customUserToken = "";
+  /** 访客id */
+  let guestUserId: string;
+  /** 无权限的用户token */
   let guestUserToken = "";
+
+  /** 测试增加功能的用户id */
+  let testCreateUserId: string;
 
   beforeAll(async () => {
     await initDB(pgPool);
@@ -43,45 +51,46 @@ describe("test user module", () => {
         },
       ],
     };
-    await pgPool.query(roleInsertQuery);
+    const roleRes = await pgPool.query(roleInsertQuery);
+    hasPermissionRoleId = roleRes.rows[0].id;
 
     // 创建测试用的自定义用户（拥有用户管理权限）
     const customUserInsertQuery: pg.QueryConfig = {
       text: `INSERT INTO "user" (data) VALUES ($1) RETURNING id`,
       values: [
         {
-          username: "test_custom_user",
+          username: "test_module_user_custom_user",
           password: "testpassword123",
           email: "test_custom@example.com",
-          nickname: "Test Custom User",
+          nickname: "测试用户（有用户管理权限）",
           role_codes: ["user_management_test_role"],
         },
       ],
     };
     const customUserRes = await pgPool.query(customUserInsertQuery);
-    testCustomUserId = customUserRes.rows[0].id;
+    hasRoleUserId = customUserRes.rows[0].id;
 
     const sign = createJwtSign();
     const customUserSignRes = await sign({
-      userId: testCustomUserId,
+      userId: hasRoleUserId,
     });
-    customUserToken = customUserSignRes.token;
+    hasPermissionUserToken = customUserSignRes.token;
 
     // 创建访客用户（权限不足）
     const guestUserInsertQuery: pg.QueryConfig = {
       text: `INSERT INTO "user" (data) VALUES ($1) RETURNING id`,
       values: [
         {
-          username: "test_guest_user",
+          username: "test_module_user_guest_user",
           password: "testpassword123",
           email: "test_guest@example.com",
-          nickname: "Test Guest User",
+          nickname: "测试用户（无用户管理权限）",
           role_codes: ["guest"],
         },
       ],
     };
     const guestUserRes = await pgPool.query(guestUserInsertQuery);
-    const guestUserId = guestUserRes.rows[0].id;
+    guestUserId = guestUserRes.rows[0].id;
 
     // 为访客用户生成token
     const guestUserSignRes = await sign({
@@ -92,14 +101,13 @@ describe("test user module", () => {
 
   afterAll(async () => {
     // 清理测试数据
-    if (testUserId) {
-      await pgPool.query(`DELETE FROM "user" WHERE id = $1`, [testUserId]);
+    if (testCreateUserId || hasRoleUserId || guestUserId) {
+      const ids = [testCreateUserId, hasRoleUserId, guestUserId].filter(id => !!id);
+      await pgPool.query(`DELETE FROM "user" WHERE id = ANY($1)`, [ids]);
     }
-    if (testCustomUserId) {
-      await pgPool.query(`DELETE FROM "user" WHERE id = $1`, [testCustomUserId]);
+    if (hasPermissionRoleId) {
+      await pgPool.query(`DELETE FROM "role" WHERE id = $1`, [hasPermissionRoleId]);
     }
-    await pgPool.query(`DELETE FROM "user" WHERE data->>'username' = 'test_guest_user'`);
-    await pgPool.query(`DELETE FROM "role" WHERE data->>'code' = 'user_management_test_role'`);
 
     server.close();
     await pgPool.end();
@@ -118,7 +126,7 @@ describe("test user module", () => {
       },
       {
         headers: {
-          Authorization: `Bearer ${customUserToken}`,
+          Authorization: `Bearer ${hasPermissionUserToken}`,
         },
       },
     );
@@ -128,7 +136,7 @@ describe("test user module", () => {
       const resJSON = await res.json();
       expect(resJSON.code).toBe(200);
       expect(resJSON.data.id).toBeDefined();
-      testUserId = resJSON.data.id;
+      testCreateUserId = resJSON.data.id;
     }
   });
 
@@ -143,7 +151,7 @@ describe("test user module", () => {
       },
       {
         headers: {
-          Authorization: `Bearer ${customUserToken}`,
+          Authorization: `Bearer ${hasPermissionUserToken}`,
         },
       },
     );
@@ -166,7 +174,7 @@ describe("test user module", () => {
       },
       {
         headers: {
-          Authorization: `Bearer ${customUserToken}`,
+          Authorization: `Bearer ${hasPermissionUserToken}`,
         },
       },
     );
@@ -183,11 +191,11 @@ describe("test user module", () => {
   it("test get user by id with custom role", async () => {
     const res = await client[":id"].$get(
       {
-        param: { id: testUserId },
+        param: { id: testCreateUserId },
       },
       {
         headers: {
-          Authorization: `Bearer ${customUserToken}`,
+          Authorization: `Bearer ${hasPermissionUserToken}`,
         },
       },
     );
@@ -196,7 +204,7 @@ describe("test user module", () => {
     if (res.ok) {
       const resJSON = await res.json();
       expect(resJSON.code).toBe(200);
-      expect(resJSON.data.id).toBe(testUserId);
+      expect(resJSON.data.id).toBe(testCreateUserId);
       expect(resJSON.data.username).toBe("testuser");
       expect(resJSON.data.email).toBe("test@example.com");
       expect(resJSON.data.nickname).toBe("Test User");
@@ -207,7 +215,7 @@ describe("test user module", () => {
   it("test update user with custom role", async () => {
     const res = await client[":id"].$put(
       {
-        param: { id: testUserId },
+        param: { id: testCreateUserId },
         json: {
           nickname: "Updated User",
           email: "updated@example.com",
@@ -216,7 +224,7 @@ describe("test user module", () => {
       },
       {
         headers: {
-          Authorization: `Bearer ${customUserToken}`,
+          Authorization: `Bearer ${hasPermissionUserToken}`,
         },
       },
     );
@@ -232,11 +240,11 @@ describe("test user module", () => {
   it("test get updated user with custom role", async () => {
     const res = await client[":id"].$get(
       {
-        param: { id: testUserId },
+        param: { id: testCreateUserId },
       },
       {
         headers: {
-          Authorization: `Bearer ${customUserToken}`,
+          Authorization: `Bearer ${hasPermissionUserToken}`,
         },
       },
     );
@@ -254,11 +262,11 @@ describe("test user module", () => {
   it("test delete user with custom role", async () => {
     const res = await client[":id"].$delete(
       {
-        param: { id: testUserId },
+        param: { id: testCreateUserId },
       },
       {
         headers: {
-          Authorization: `Bearer ${customUserToken}`,
+          Authorization: `Bearer ${hasPermissionUserToken}`,
         },
       },
     );
