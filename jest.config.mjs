@@ -17,5 +17,8 @@ export default {
   testMatch: ["<rootDir>/src/**/*/*.spec.ts"],
   // testMatch: [
   //   "<rootDir>/src/modules/template/*.spec.ts",
+  //   "<rootDir>/src/modules/auth/*.spec.ts",
+  //   "<rootDir>/src/modules/user/*.spec.ts",
+  //   "<rootDir>/src/modules/permission/*.spec.ts",
   // ],
 };

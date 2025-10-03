@@ -26,7 +26,6 @@ export const createJwtMiddleware = (secret?: string) => {
   // 从环境变量获取JWT密钥，如果没有则使用默认值
   const jwtSecret = secret || process.env.JWT_SECRET || "jwt";
 
-  const { IS_DEV } = process.env;
   const jwtSign = createJwtSign(jwtSecret);
   const jwtVerify = createJwtVerify(jwtSecret);
 
@@ -41,18 +40,16 @@ export const createJwtMiddleware = (secret?: string) => {
     }
 
     const token = c.req.header("Authorization")?.split(" ")[1];
-    // 开发环境下忽略token验证
-    const data = IS_DEV ? jwtSign({ userId: "123" }) : {};
     if (token) {
       const { err, decoded } = await jwtVerify(token);
       if (err) {
-        return c.json({ code: 401, msg: "登录过期", data });
+        return c.json({ code: 401, msg: "登录过期", data: {} });
       } else {
         c.set("jwtPayload", decoded);
         await next();
       }
     } else {
-      return c.json({ code: 401, msg: "未登录", data });
+      return c.json({ code: 401, msg: "未登录", data: {} });
     }
   });
 };

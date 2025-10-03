@@ -10,11 +10,13 @@ import type {
   PermissionListResponse,
   UpdatePermissionRequest,
 } from "./model";
+import { createPermissionMiddleware } from "@/middlewares/permission";
 
 export const permissionApp = new Hono()
   // 创建新权限
   .post(
     "/",
+    createPermissionMiddleware("permission:create"),
     zValidator(
       "json",
       z.strictObject({
@@ -55,7 +57,10 @@ export const permissionApp = new Hono()
     },
   )
   // 获取权限详情
-  .get("/:id", zValidator("param", z.object({ id: z.string() }), validateFailHandler), async c => {
+  .get("/:id", 
+    createPermissionMiddleware("permission:read"),
+    zValidator("param", z.object({ id: z.string() }), validateFailHandler), 
+    async c => {
     const { id } = c.req.valid("param");
 
     const queryConf: pg.QueryConfig = {
@@ -84,6 +89,7 @@ export const permissionApp = new Hono()
   // 更新权限
   .put(
     "/:id",
+    createPermissionMiddleware("permission:update"),
     zValidator("param", z.object({ id: z.string() }), validateFailHandler),
     zValidator(
       "json",
@@ -142,7 +148,10 @@ export const permissionApp = new Hono()
     },
   )
   // 删除权限
-  .delete("/:id", zValidator("param", z.object({ id: z.string() }), validateFailHandler), async c => {
+  .delete("/:id", 
+    createPermissionMiddleware("permission:delete"),
+    zValidator("param", z.object({ id: z.string() }), validateFailHandler), 
+    async c => {
     const { id } = c.req.valid("param");
 
     // 检查权限是否存在及类型
@@ -174,6 +183,7 @@ export const permissionApp = new Hono()
   // 分页获取权限列表
   .post(
     "/page",
+    createPermissionMiddleware("permission:list"),
     zValidator(
       "json",
       z.object({

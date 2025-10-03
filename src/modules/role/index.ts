@@ -4,11 +4,13 @@ import { Hono } from "hono";
 import pg from "pg";
 import { z } from "zod/v4";
 import type { CreateRoleRequest, Role, RoleDetailResponse, RoleListResponse, UpdateRoleRequest } from "./model";
+import { createPermissionMiddleware } from "@/middlewares/permission";
 
 export const roleApp = new Hono()
   // 创建新角色
   .post(
     "/",
+    createPermissionMiddleware("role:create"),
     zValidator(
       "json",
       z.strictObject({
@@ -50,7 +52,10 @@ export const roleApp = new Hono()
     },
   )
   // 获取角色详情
-  .get("/:id", zValidator("param", z.object({ id: z.string() }), validateFailHandler), async c => {
+  .get("/:id", 
+    createPermissionMiddleware("role:read"),
+    zValidator("param", z.object({ id: z.string() }), validateFailHandler), 
+    async c => {
     const { id } = c.req.valid("param");
 
     const queryConf: pg.QueryConfig = {
@@ -80,6 +85,7 @@ export const roleApp = new Hono()
   // 更新角色
   .put(
     "/:id",
+    createPermissionMiddleware("role:update"),
     zValidator("param", z.object({ id: z.string() }), validateFailHandler),
     zValidator(
       "json",
@@ -139,7 +145,10 @@ export const roleApp = new Hono()
     },
   )
   // 删除角色
-  .delete("/:id", zValidator("param", z.object({ id: z.string() }), validateFailHandler), async c => {
+  .delete("/:id", 
+    createPermissionMiddleware("role:delete"),
+    zValidator("param", z.object({ id: z.string() }), validateFailHandler), 
+    async c => {
     const { id } = c.req.valid("param");
 
     // 检查角色是否存在及类型
@@ -171,6 +180,7 @@ export const roleApp = new Hono()
   // 分页获取角色列表
   .post(
     "/page",
+    createPermissionMiddleware("role:list"),
     zValidator(
       "json",
       z.object({
@@ -263,6 +273,7 @@ export const roleApp = new Hono()
   // 获取角色关联的权限列表
   .get(
     "/:id/permissions",
+    createPermissionMiddleware("role:read"),
     zValidator("param", z.object({ id: z.string() }), validateFailHandler),
     async c => {
       const { id } = c.req.valid("param");
