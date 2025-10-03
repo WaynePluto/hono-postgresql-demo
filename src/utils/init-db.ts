@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { defaultPermissions, defaultRoles } from "./default-data";
 
 export async function initDB(pool: Pool) {
   await createTable(pool, "template");
@@ -12,6 +13,10 @@ export async function initDB(pool: Pool) {
   await createPermissionIndex(pool);
   await createTable(pool, "role");
   await createRoleIndex(pool);
+
+  // 添加默认权限和角色
+  await createDefaultPermissions(pool);
+  await createDefaultRoles(pool);
 
   return;
 }
@@ -74,7 +79,10 @@ function createPermissionIndex(pool: Pool) {
 CREATE UNIQUE INDEX IF NOT EXISTS idx_permission_code ON permission ((data->>'code'));
 -- 为权限名称创建索引以支持模糊查询
 CREATE INDEX IF NOT EXISTS idx_permission_name ON permission ((data->>'name'));
+-- 为权限类型创建索引以提升按类型查询的性能
+CREATE INDEX IF NOT EXISTS idx_permission_type ON permission ((data->>'type'));
 `);
+
 }
 
 function createRoleIndex(pool: Pool) {
@@ -83,6 +91,8 @@ function createRoleIndex(pool: Pool) {
 CREATE UNIQUE INDEX IF NOT EXISTS idx_role_code ON role ((data->>'code'));
 -- 为角色名称创建索引以支持模糊查询
 CREATE INDEX IF NOT EXISTS idx_role_name ON role ((data->>'name'));
+-- 为角色类型创建索引以提升按类型查询的性能
+CREATE INDEX IF NOT EXISTS idx_role_type ON role ((data->>'type'));
 `);
 }
 
@@ -99,4 +109,36 @@ function createAdminUser(pool: Pool) {
   };
 
   return pool.query(`INSERT INTO "user" (data) VALUES ($1) ON CONFLICT DO NOTHING`, [adminUser]);
+}
+
+/**
+ * 创建默认权限
+ */
+async function createDefaultPermissions(pool: Pool) {
+  // 先删除所有系统类型的权限
+  await pool.query(`DELETE FROM permission WHERE data->>'type' = 'system'`);
+  
+  // 插入默认权限（系统类型）
+  for (const perm of defaultPermissions) {
+    await pool.query(
+      `INSERT INTO permission (data) VALUES ($1)`, 
+      [perm]
+    );
+  }
+}
+
+/**
+ * 创建默认角色
+ */
+async function createDefaultRoles(pool: Pool) {
+  // 先删除所有系统类型的角色
+  await pool.query(`DELETE FROM role WHERE data->>'type' = 'system'`);
+  
+  // 插入默认角色（系统类型）
+  for (const role of defaultRoles) {
+    await pool.query(
+      `INSERT INTO role (data) VALUES ($1)`, 
+      [role]
+    );
+  }
 }

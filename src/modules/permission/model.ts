@@ -6,12 +6,13 @@ export type Permission = {
     name: string;
     code: string;
     description?: string;
+    type: 'system' | 'custom'; // 系统默认权限或用户自定义权限
   };
 };
 
-export type CreatePermissionRequest = Permission["data"];
+export type CreatePermissionRequest = Omit<Permission["data"], 'type'> & { type?: 'system' | 'custom' };
 
-export type UpdatePermissionRequest = Partial<Permission["data"]>;
+export type UpdatePermissionRequest = Partial<Omit<Permission["data"], 'type'>>;
 
 export type PermissionDetailResponse = {
   id: string;

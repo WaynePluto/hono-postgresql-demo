@@ -21,6 +21,7 @@ export const permissionApp = new Hono()
         name: z.string().min(1, "权限名称不能为空"),
         code: z.string().min(1, "权限代码不能为空"),
         description: z.string().optional(),
+        type: z.enum(["system", "custom"]).optional().default("custom"),
       }),
       validateFailHandler,
     ),
@@ -38,9 +39,15 @@ export const permissionApp = new Hono()
         return c.json({ code: 400, msg: "权限代码已存在", data: { id: "" } });
       }
 
+      // 设置默认类型为custom
+      const permissionData = {
+        ...data,
+        type: data.type || "custom"
+      };
+
       const queryConf: pg.QueryConfig = {
         text: `INSERT INTO permission (data) VALUES ($1) RETURNING id`,
-        values: [data],
+        values: [permissionData],
       };
       const res = await c.var.pool.query(queryConf);
 
@@ -67,6 +74,7 @@ export const permissionApp = new Hono()
       name: permission.data.name,
       code: permission.data.code,
       description: permission.data.description,
+      type: permission.data.type,
       created_at: permission.created_at.toJSON(),
       updated_at: permission.updated_at.toJSON(),
     };
@@ -92,13 +100,20 @@ export const permissionApp = new Hono()
 
       // 检查权限是否存在
       const permissionCheck: pg.QueryConfig = {
-        text: `SELECT id FROM permission WHERE id = $1`,
+        text: `SELECT id, data FROM permission WHERE id = $1`,
         values: [id],
       };
-      const existingPermission = await c.var.pool.query(permissionCheck);
+      const existingPermissionResult = await c.var.pool.query(permissionCheck);
 
-      if (existingPermission.rows.length === 0) {
+      if (existingPermissionResult.rows.length === 0) {
         return c.json({ code: 404, msg: "权限不存在", data: null });
+      }
+
+      const existingPermission = existingPermissionResult.rows[0];
+      
+      // 如果是系统权限，不允许修改
+      if (existingPermission.data.type === "system") {
+        return c.json({ code: 403, msg: "系统权限不允许修改，请通过代码进行更新", data: null });
       }
 
       // 如果更新权限代码，检查是否与其他权限重复
@@ -115,9 +130,11 @@ export const permissionApp = new Hono()
       }
 
       // 合并现有数据和更新数据
+      const mergedData = { ...existingPermission.data, ...updateData };
+      
       const updateQuery: pg.QueryConfig = {
         text: `UPDATE permission SET data = $1 WHERE id = $2`,
-        values: [updateData, id],
+        values: [mergedData, id],
       };
       const res = await c.var.pool.query(updateQuery);
 
@@ -128,15 +145,22 @@ export const permissionApp = new Hono()
   .delete("/:id", zValidator("param", z.object({ id: z.string() }), validateFailHandler), async c => {
     const { id } = c.req.valid("param");
 
-    // 检查权限是否存在
+    // 检查权限是否存在及类型
     const permissionCheck: pg.QueryConfig = {
-      text: `SELECT id FROM permission WHERE id = $1`,
+      text: `SELECT id, data FROM permission WHERE id = $1`,
       values: [id],
     };
-    const existingPermission = await c.var.pool.query(permissionCheck);
+    const existingPermissionResult = await c.var.pool.query(permissionCheck);
 
-    if (existingPermission.rows.length === 0) {
+    if (existingPermissionResult.rows.length === 0) {
       return c.json({ code: 404, msg: "权限不存在", data: null });
+    }
+
+    const existingPermission = existingPermissionResult.rows[0];
+    
+    // 如果是系统权限，不允许删除
+    if (existingPermission.data.type === "system") {
+      return c.json({ code: 403, msg: "系统权限不允许删除", data: null });
     }
 
     const deleteQuery: pg.QueryConfig = {
@@ -157,13 +181,14 @@ export const permissionApp = new Hono()
         pageSize: z.number().min(1),
         name: z.string().optional(),
         code: z.string().optional(),
+        type: z.enum(["system", "custom"]).optional(),
         orderBy: z.enum(["created_at", "updated_at"]).optional(),
         order: z.enum(["asc", "desc"]).optional(),
       }),
       validateFailHandler,
     ),
     async c => {
-      const { page, pageSize, name, code, orderBy = "created_at", order = "DESC" } = c.req.valid("json");
+      const { page, pageSize, name, code, type, orderBy = "created_at", order = "DESC" } = c.req.valid("json");
 
       let queryText = `SELECT COUNT(*) FROM permission WHERE 1=1`;
       const countValues: any[] = [];
@@ -178,6 +203,12 @@ export const permissionApp = new Hono()
       if (code) {
         queryText += ` AND data->>'code' ILIKE $${paramIndex}`;
         countValues.push(`%${code}%`);
+        paramIndex++;
+      }
+      
+      if (type) {
+        queryText += ` AND data->>'type' = $${paramIndex}`;
+        countValues.push(type);
         paramIndex++;
       }
 
@@ -199,6 +230,12 @@ export const permissionApp = new Hono()
         listValues.push(`%${code}%`);
         paramIndex++;
       }
+      
+      if (type) {
+        listQueryText += ` AND data->>'type' = $${paramIndex}`;
+        listValues.push(type);
+        paramIndex++;
+      }
 
       listQueryText += ` ORDER BY ${orderBy} ${order} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       listValues.push(pageSize, (page - 1) * pageSize);
@@ -210,6 +247,7 @@ export const permissionApp = new Hono()
         name: permission.data.name,
         code: permission.data.code,
         description: permission.data.description,
+        type: permission.data.type,
         created_at: permission.created_at.toJSON(),
         updated_at: permission.updated_at.toJSON(),
       }));

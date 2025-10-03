@@ -7,12 +7,13 @@ export type Role = {
     code: string;
     description?: string;
     permission_codes?: string[];
+    type: 'system' | 'custom'; // 系统默认角色或用户自定义角色
   };
 };
 
-export type CreateRoleRequest = Role["data"];
+export type CreateRoleRequest = Omit<Role["data"], 'type'> & { type?: 'system' | 'custom' };
 
-export type UpdateRoleRequest = Partial<Role["data"]>;
+export type UpdateRoleRequest = Partial<Omit<Role["data"], 'type'>>;
 
 export type RoleDetailResponse = {
   id: string;

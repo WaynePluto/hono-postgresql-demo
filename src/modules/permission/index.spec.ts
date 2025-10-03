@@ -22,22 +22,13 @@ describe("test permission module", () => {
     await initDB(pgPool);
   });
 
-  afterAll(async () => {
-    // 清理测试数据
-    await pgPool.query(`DELETE FROM permission WHERE data->>'code' = 'users:view'`);
-    await pgPool.query(`DELETE FROM permission WHERE data->>'code' = 'test:permission'`);
-    await pgPool.query(`DELETE FROM permission WHERE data->>'code' = 'users:manage'`);
-    
-    server.close();
-    await pgPool.end();
-  });
-
   it("test create permission", async () => {
     const res = await client.index.$post({
       json: {
-        name: "View Users",
-        code: "users:view",
-        description: "Permission to view users",
+        name: "Test View Users",
+        code: "test_users:view",
+        description: "Test permission to view users",
+        type: "custom"
       },
     });
     expect(res.ok).toBe(true);
@@ -55,7 +46,7 @@ describe("test permission module", () => {
       json: {
         page: 1,
         pageSize: 10,
-        name: "View Users",
+        name: "Test View Users",
       },
     });
     expect(res.ok).toBe(true);
@@ -74,9 +65,9 @@ describe("test permission module", () => {
     if (res.ok) {
       const resJSON = await res.json();
       expect(resJSON.code).toBe(200);
-      expect(resJSON.data.name).toEqual("View Users");
-      expect(resJSON.data.code).toEqual("users:view");
-      expect(resJSON.data.description).toEqual("Permission to view users");
+      expect(resJSON.data.name).toEqual("Test View Users");
+      expect(resJSON.data.code).toEqual("test_users:view");
+      expect(resJSON.data.description).toEqual("Test permission to view users");
     }
   });
 
@@ -84,9 +75,9 @@ describe("test permission module", () => {
     const res = await client[":id"].$put({
       param: { id: id.toString() },
       json: {
-        name: "Manage Users",
-        code: "users:manage",
-        description: "Permission to manage users",
+        name: "Test Manage Users",
+        code: "test_users:manage",
+        description: "Test permission to manage users",
       },
     });
     expect(res.ok).toBe(true);
@@ -104,9 +95,9 @@ describe("test permission module", () => {
     if (res.ok) {
       const resJSON = await res.json();
       expect(resJSON.code).toBe(200);
-      expect(resJSON.data.name).toEqual("Manage Users");
-      expect(resJSON.data.code).toEqual("users:manage");
-      expect(resJSON.data.description).toEqual("Permission to manage users");
+      expect(resJSON.data.name).toEqual("Test Manage Users");
+      expect(resJSON.data.code).toEqual("test_users:manage");
+      expect(resJSON.data.description).toEqual("Test permission to manage users");
     }
   });
 
@@ -115,7 +106,8 @@ describe("test permission module", () => {
     const res1 = await client.index.$post({
       json: {
         name: "Test Permission",
-        code: "test:permission",
+        code: "test_permission",
+        type: "custom"
       },
     });
 
@@ -125,7 +117,8 @@ describe("test permission module", () => {
     const res2 = await client.index.$post({
       json: {
         name: "Another Test Permission",
-        code: "test:permission",
+        code: "test_permission",
+        type: "custom"
       },
     });
 
@@ -161,4 +154,15 @@ describe("test permission module", () => {
       expect(resJSON.msg).toBe("权限不存在");
     }
   });
+
+  afterAll(async () => {
+    // 清理测试数据
+    await pgPool.query(`DELETE FROM permission WHERE data->>'code' = 'test_users:view'`);
+    await pgPool.query(`DELETE FROM permission WHERE data->>'code' = 'test_permission'`);
+    await pgPool.query(`DELETE FROM permission WHERE data->>'code' = 'test_users:manage'`);
+    
+    server.close();
+    await pgPool.end();
+  });
+
 });

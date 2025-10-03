@@ -22,23 +22,14 @@ describe("test role module", () => {
     await initDB(pgPool);
   });
 
-  afterAll(async () => {
-    // 清理测试数据
-    await pgPool.query(`DELETE FROM role WHERE data->>'code' = 'admin'`);
-    await pgPool.query(`DELETE FROM role WHERE data->>'code' = 'test:role'`);
-    await pgPool.query(`DELETE FROM role WHERE data->>'code' = 'super_admin'`);
-    
-    server.close();
-    await pgPool.end();
-  });
-
   it("test create role", async () => {
     const res = await client.index.$post({
       json: {
-        name: "Administrator",
-        code: "admin",
-        description: "Administrator role with full permissions",
+        name: "Test Administrator",
+        code: "test_admin",
+        description: "Test administrator role with full permissions",
         permission_codes: ["perm1", "perm2"],
+        type: "custom"
       },
     });
     expect(res.ok).toBe(true);
@@ -56,7 +47,7 @@ describe("test role module", () => {
       json: {
         page: 1,
         pageSize: 10,
-        name: "Administrator",
+        name: "Test Administrator",
       },
     });
     expect(res.ok).toBe(true);
@@ -75,9 +66,9 @@ describe("test role module", () => {
     if (res.ok) {
       const resJSON = await res.json();
       expect(resJSON.code).toBe(200);
-      expect(resJSON.data.name).toEqual("Administrator");
-      expect(resJSON.data.code).toEqual("admin");
-      expect(resJSON.data.description).toEqual("Administrator role with full permissions");
+      expect(resJSON.data.name).toEqual("Test Administrator");
+      expect(resJSON.data.code).toEqual("test_admin");
+      expect(resJSON.data.description).toEqual("Test administrator role with full permissions");
       expect(resJSON.data.permission_codes).toEqual(["perm1", "perm2"]);
     }
   });
@@ -86,9 +77,9 @@ describe("test role module", () => {
     const res = await client[":id"].$put({
       param: { id: id.toString() },
       json: {
-        name: "Super Administrator",
-        code: "super_admin",
-        description: "Super administrator role with full permissions",
+        name: "Test Super Administrator",
+        code: "test_super_admin",
+        description: "Test super administrator role with full permissions",
         permission_codes: ["perm1", "perm2", "perm3"],
       },
     });
@@ -107,9 +98,9 @@ describe("test role module", () => {
     if (res.ok) {
       const resJSON = await res.json();
       expect(resJSON.code).toBe(200);
-      expect(resJSON.data.name).toEqual("Super Administrator");
-      expect(resJSON.data.code).toEqual("super_admin");
-      expect(resJSON.data.description).toEqual("Super administrator role with full permissions");
+      expect(resJSON.data.name).toEqual("Test Super Administrator");
+      expect(resJSON.data.code).toEqual("test_super_admin");
+      expect(resJSON.data.description).toEqual("Test super administrator role with full permissions");
       expect(resJSON.data.permission_codes).toEqual(["perm1", "perm2", "perm3"]);
     }
   });
@@ -119,7 +110,8 @@ describe("test role module", () => {
     const res1 = await client.index.$post({
       json: {
         name: "Test Role",
-        code: "test:role",
+        code: "test_role",
+        type: "custom"
       },
     });
 
@@ -129,7 +121,8 @@ describe("test role module", () => {
     const res2 = await client.index.$post({
       json: {
         name: "Another Test Role",
-        code: "test:role",
+        code: "test_role",
+        type: "custom"
       },
     });
 
@@ -165,4 +158,15 @@ describe("test role module", () => {
       expect(resJSON.msg).toBe("角色不存在");
     }
   });
+
+  afterAll(async () => {
+    // 清理测试数据
+    await pgPool.query(`DELETE FROM role WHERE data->>'code' = 'test_admin'`);
+    await pgPool.query(`DELETE FROM role WHERE data->>'code' = 'test_role'`);
+    await pgPool.query(`DELETE FROM role WHERE data->>'code' = 'test_super_admin'`);
+    
+    server.close();
+    await pgPool.end();
+  });
+
 });
