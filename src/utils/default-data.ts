@@ -128,47 +128,6 @@ export const defaultPermissions = [
     type: "system"
   },
 
-  // 模板管理权限
-  {
-    name: "创建模板",
-    code: "template:create",
-    description: "创建新模板",
-    resource: "template",
-    action: "create",
-    type: "system"
-  },
-  {
-    name: "查看模板",
-    code: "template:read",
-    description: "查看模板信息",
-    resource: "template",
-    action: "read",
-    type: "system"
-  },
-  {
-    name: "更新模板",
-    code: "template:update",
-    description: "更新模板信息",
-    resource: "template",
-    action: "update",
-    type: "system"
-  },
-  {
-    name: "删除模板",
-    code: "template:delete",
-    description: "删除模板",
-    resource: "template",
-    action: "delete",
-    type: "system"
-  },
-  {
-    name: "模板列表",
-    code: "template:list",
-    description: "查看模板列表",
-    resource: "template",
-    action: "list",
-    type: "system"
-  },
 ];
 
 /**
@@ -197,11 +156,6 @@ export const defaultRoles = [
       "role:update",
       "role:delete",
       "role:list",
-      "template:create",
-      "template:read",
-      "template:update",
-      "template:delete",
-      "template:list",
     ],
     type: "system"
   },
@@ -209,14 +163,14 @@ export const defaultRoles = [
     name: "普通用户",
     code: "user",
     description: "普通用户角色，拥有基本的查看和操作自己数据的权限",
-    permission_codes: ["user:read", "user:update", "template:list", "template:read"],
+    permission_codes: ["user:read", "user:update"],
     type: "system"
   },
   {
     name: "访客",
     code: "guest",
     description: "访客角色，只拥有最基本的查看权限",
-    permission_codes: ["template:list", "template:read"],
+    permission_codes: [],
     type: "system"
   },
 ];
