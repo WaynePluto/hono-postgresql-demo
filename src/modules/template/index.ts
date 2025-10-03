@@ -3,7 +3,13 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import pg from "pg";
 import { z } from "zod/v4";
-import type { CreateTemplateRequest, Model, TemplateDetailResponse, TemplateListResponse, UpdateTemplateRequest } from "./model";
+import type {
+  CreateTemplateRequest,
+  Model,
+  TemplateDetailResponse,
+  TemplateListResponse,
+  UpdateTemplateRequest,
+} from "./model";
 
 export const templateApp = new Hono()
   // 创建新模板
@@ -119,7 +125,6 @@ export const templateApp = new Hono()
       z.object({
         page: z.number().min(1),
         pageSize: z.number().min(1),
-        keyword: z.string().optional(),
         name: z.string().optional(),
         orderBy: z.enum(["created_at", "updated_at"]).optional(),
         order: z.enum(["asc", "desc"]).optional(),
@@ -127,17 +132,11 @@ export const templateApp = new Hono()
       validateFailHandler,
     ),
     async c => {
-      const { page, pageSize, keyword, name, orderBy = "created_at", order = "DESC" } = c.req.valid("json");
+      const { page, pageSize, name, orderBy = "created_at", order = "DESC" } = c.req.valid("json");
 
       let queryText = `SELECT COUNT(*) FROM template WHERE 1=1`;
       const countValues: any[] = [];
       let paramIndex = 1;
-
-      if (keyword) {
-        queryText += ` AND data->>'name' ILIKE $${paramIndex}`;
-        countValues.push(`%${keyword}%`);
-        paramIndex++;
-      }
 
       if (name) {
         queryText += ` AND data->>'name' ILIKE $${paramIndex}`;
@@ -151,12 +150,6 @@ export const templateApp = new Hono()
       let listQueryText = `SELECT * FROM template WHERE 1=1`;
       const listValues: any[] = [];
       paramIndex = 1;
-
-      if (keyword) {
-        listQueryText += ` AND data->>'name' ILIKE $${paramIndex}`;
-        listValues.push(`%${keyword}%`);
-        paramIndex++;
-      }
 
       if (name) {
         listQueryText += ` AND data->>'name' ILIKE $${paramIndex}`;

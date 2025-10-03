@@ -14,7 +14,6 @@ export const userApp = new Hono()
       z.object({
         page: z.number().min(1),
         pageSize: z.number().min(1),
-        keyword: z.string().optional(),
         username: z.string().optional(),
         orderBy: z.enum(["created_at", "updated_at"]).optional(),
         order: z.enum(["asc", "desc"]).optional(),
@@ -22,21 +21,11 @@ export const userApp = new Hono()
       validateFailHandler,
     ),
     async c => {
-      const { page, pageSize, keyword, username, orderBy = "created_at", order = "DESC" } = c.req.valid("json");
+      const { page, pageSize, username, orderBy = "created_at", order = "DESC" } = c.req.valid("json");
 
       let queryText = `SELECT COUNT(*) FROM "user" WHERE 1=1`;
       const countValues: any[] = [];
       let paramIndex = 1;
-
-      if (keyword) {
-        queryText += ` AND (
-          data->>'username' ILIKE $${paramIndex} OR 
-          data->>'email' ILIKE $${paramIndex} OR 
-          data->>'nickname' ILIKE $${paramIndex}
-        )`;
-        countValues.push(`%${keyword}%`);
-        paramIndex++;
-      }
 
       if (username) {
         queryText += ` AND data->>'username' ILIKE $${paramIndex}`;
@@ -50,16 +39,6 @@ export const userApp = new Hono()
       let listQueryText = `SELECT * FROM "user" WHERE 1=1`;
       const listValues: any[] = [];
       paramIndex = 1;
-
-      if (keyword) {
-        listQueryText += ` AND (
-          data->>'username' ILIKE $${paramIndex} OR 
-          data->>'email' ILIKE $${paramIndex} OR 
-          data->>'nickname' ILIKE $${paramIndex}
-        )`;
-        listValues.push(`%${keyword}%`);
-        paramIndex++;
-      }
 
       if (username) {
         listQueryText += ` AND data->>'username' ILIKE $${paramIndex}`;
