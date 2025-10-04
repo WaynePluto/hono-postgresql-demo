@@ -1,10 +1,10 @@
+import { createPermissionMiddleware } from "@/middlewares/permission";
 import { validateFailHandler } from "@/utils/validate-fail-handler";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import pg from "pg";
 import { z } from "zod/v4";
 import type { CreateRoleRequest, Role, RoleDetailResponse, RoleListResponse, UpdateRoleRequest } from "./model";
-import { createPermissionMiddleware } from "@/middlewares/permission";
 
 export const roleApp = new Hono()
   // 创建新角色
@@ -39,7 +39,7 @@ export const roleApp = new Hono()
       // 设置默认类型为custom
       const roleData = {
         ...data,
-        type: data.type || "custom"
+        type: data.type || "custom",
       };
 
       const queryConf: pg.QueryConfig = {
@@ -52,36 +52,38 @@ export const roleApp = new Hono()
     },
   )
   // 获取角色详情
-  .get("/:id", 
+  .get(
+    "/:id",
     createPermissionMiddleware("role:read"),
-    zValidator("param", z.object({ id: z.string() }), validateFailHandler), 
+    zValidator("param", z.object({ id: z.string() }), validateFailHandler),
     async c => {
-    const { id } = c.req.valid("param");
+      const { id } = c.req.valid("param");
 
-    const queryConf: pg.QueryConfig = {
-      text: `SELECT * FROM role WHERE id = $1`,
-      values: [id],
-    };
-    const res = await c.var.pool.query<Role>(queryConf);
+      const queryConf: pg.QueryConfig = {
+        text: `SELECT * FROM role WHERE id = $1`,
+        values: [id],
+      };
+      const res = await c.var.pool.query<Role>(queryConf);
 
-    if (res.rows.length === 0) {
-      return c.json({ code: 404, msg: "角色不存在", data: {} as RoleDetailResponse });
-    }
+      if (res.rows.length === 0) {
+        return c.json({ code: 404, msg: "角色不存在", data: {} as RoleDetailResponse });
+      }
 
-    const role = res.rows[0];
-    const roleDetail: RoleDetailResponse = {
-      id: role.id,
-      name: role.data.name,
-      code: role.data.code,
-      description: role.data.description,
-      permission_codes: role.data.permission_codes,
-      type: role.data.type,
-      created_at: role.created_at.toJSON(),
-      updated_at: role.updated_at.toJSON(),
-    };
+      const role = res.rows[0];
+      const roleDetail: RoleDetailResponse = {
+        id: role.id,
+        name: role.data.name,
+        code: role.data.code,
+        description: role.data.description,
+        permission_codes: role.data.permission_codes,
+        type: role.data.type,
+        created_at: role.created_at.toJSON(),
+        updated_at: role.updated_at.toJSON(),
+      };
 
-    return c.json({ code: 200, msg: "success", data: roleDetail });
-  })
+      return c.json({ code: 200, msg: "success", data: roleDetail });
+    },
+  )
   // 更新角色
   .put(
     "/:id",
@@ -113,10 +115,10 @@ export const roleApp = new Hono()
       }
 
       const existingRole = existingRoleResult.rows[0];
-      
-      // 如果是系统角色，不允许修改
+
+      // 如果是系统内置角色，不允许修改
       if (existingRole.data.type === "system") {
-        return c.json({ code: 403, msg: "系统角色不允许修改，请通过代码进行更新", data: null });
+        return c.json({ code: 403, msg: "系统内置角色不允许修改，请通过代码进行更新", data: null });
       }
 
       // 如果更新角色代码，检查是否与其他角色重复
@@ -134,7 +136,7 @@ export const roleApp = new Hono()
 
       // 合并现有数据和更新数据
       const mergedData = { ...existingRole.data, ...updateData };
-      
+
       const updateQuery: pg.QueryConfig = {
         text: `UPDATE role SET data = $1 WHERE id = $2`,
         values: [mergedData, id],
@@ -145,38 +147,40 @@ export const roleApp = new Hono()
     },
   )
   // 删除角色
-  .delete("/:id", 
+  .delete(
+    "/:id",
     createPermissionMiddleware("role:delete"),
-    zValidator("param", z.object({ id: z.string() }), validateFailHandler), 
+    zValidator("param", z.object({ id: z.string() }), validateFailHandler),
     async c => {
-    const { id } = c.req.valid("param");
+      const { id } = c.req.valid("param");
 
-    // 检查角色是否存在及类型
-    const roleCheck: pg.QueryConfig = {
-      text: `SELECT id, data FROM role WHERE id = $1`,
-      values: [id],
-    };
-    const existingRoleResult = await c.var.pool.query(roleCheck);
+      // 检查角色是否存在及类型
+      const roleCheck: pg.QueryConfig = {
+        text: `SELECT id, data FROM role WHERE id = $1`,
+        values: [id],
+      };
+      const existingRoleResult = await c.var.pool.query(roleCheck);
 
-    if (existingRoleResult.rows.length === 0) {
-      return c.json({ code: 404, msg: "角色不存在", data: null });
-    }
+      if (existingRoleResult.rows.length === 0) {
+        return c.json({ code: 404, msg: "角色不存在", data: null });
+      }
 
-    const existingRole = existingRoleResult.rows[0];
-    
-    // 如果是系统角色，不允许删除
-    if (existingRole.data.type === "system") {
-      return c.json({ code: 403, msg: "系统角色不允许删除", data: null });
-    }
+      const existingRole = existingRoleResult.rows[0];
 
-    const deleteQuery: pg.QueryConfig = {
-      text: `DELETE FROM role WHERE id = $1`,
-      values: [id],
-    };
-    const res = await c.var.pool.query(deleteQuery);
+      // 如果是系统内置角色，不允许删除
+      if (existingRole.data.type === "system") {
+        return c.json({ code: 403, msg: "系统内置角色不允许删除", data: null });
+      }
 
-    return c.json({ code: 200, msg: "删除成功", data: res.rowCount });
-  })
+      const deleteQuery: pg.QueryConfig = {
+        text: `DELETE FROM role WHERE id = $1`,
+        values: [id],
+      };
+      const res = await c.var.pool.query(deleteQuery);
+
+      return c.json({ code: 200, msg: "删除成功", data: res.rowCount });
+    },
+  )
   // 分页获取角色列表
   .post(
     "/page",
@@ -212,7 +216,7 @@ export const roleApp = new Hono()
         countValues.push(`%${code}%`);
         paramIndex++;
       }
-      
+
       if (type) {
         queryText += ` AND data->>'type' = $${paramIndex}`;
         countValues.push(type);
@@ -237,7 +241,7 @@ export const roleApp = new Hono()
         listValues.push(`%${code}%`);
         paramIndex++;
       }
-      
+
       if (type) {
         listQueryText += ` AND data->>'type' = $${paramIndex}`;
         listValues.push(type);

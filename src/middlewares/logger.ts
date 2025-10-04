@@ -39,28 +39,12 @@ export const createLoggerMiddleware = (logger = createLogger()) => {
       const info = getConnInfo(c).remote;
       const connect = `${info.addressType} ${info.address}:${info.port}`;
       const requestId = c.var.requestId;
-      if (c.req.header("Content-Type") === "application/json") {
-        const body = await c.req.json();
-        logger.info({
-          requestId,
-          body,
-        });
-      }
-      if (c.res.headers.get("Content-Type") === "application/json") {
-        const res = await c.res.clone().json();
-        logger.info({
-          requestId,
-          code: res.code,
-        });
-      }
       const time = `${Date.now() - startTime}ms`;
       logger.info({
         requestId,
         url,
         method,
         connect,
-        param: c.req.param(),
-        query: c.req.query(),
         time,
       });
     } catch (error: any) {

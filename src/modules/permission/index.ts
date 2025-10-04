@@ -1,3 +1,4 @@
+import { createPermissionMiddleware } from "@/middlewares/permission";
 import { validateFailHandler } from "@/utils/validate-fail-handler";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -10,7 +11,6 @@ import type {
   PermissionListResponse,
   UpdatePermissionRequest,
 } from "./model";
-import { createPermissionMiddleware } from "@/middlewares/permission";
 
 export const permissionApp = new Hono()
   // 创建新权限
@@ -22,6 +22,7 @@ export const permissionApp = new Hono()
       z.strictObject({
         name: z.string().min(1, "权限名称不能为空"),
         code: z.string().min(1, "权限代码不能为空"),
+        resource: z.string().min(1, "权限所属不能为空"),
         description: z.string().optional(),
         type: z.enum(["system", "custom"]).optional().default("custom"),
       }),
@@ -44,7 +45,7 @@ export const permissionApp = new Hono()
       // 设置默认类型为custom
       const permissionData = {
         ...data,
-        type: data.type || "custom"
+        type: data.type || "custom",
       };
 
       const queryConf: pg.QueryConfig = {
@@ -57,35 +58,38 @@ export const permissionApp = new Hono()
     },
   )
   // 获取权限详情
-  .get("/:id", 
+  .get(
+    "/:id",
     createPermissionMiddleware("permission:read"),
-    zValidator("param", z.object({ id: z.string() }), validateFailHandler), 
+    zValidator("param", z.object({ id: z.string() }), validateFailHandler),
     async c => {
-    const { id } = c.req.valid("param");
+      const { id } = c.req.valid("param");
 
-    const queryConf: pg.QueryConfig = {
-      text: `SELECT * FROM permission WHERE id = $1`,
-      values: [id],
-    };
-    const res = await c.var.pool.query<Permission>(queryConf);
+      const queryConf: pg.QueryConfig = {
+        text: `SELECT * FROM permission WHERE id = $1`,
+        values: [id],
+      };
+      const res = await c.var.pool.query<Permission>(queryConf);
 
-    if (res.rows.length === 0) {
-      return c.json({ code: 404, msg: "权限不存在", data: {} as PermissionDetailResponse });
-    }
+      if (res.rows.length === 0) {
+        return c.json({ code: 404, msg: "权限不存在", data: {} as PermissionDetailResponse });
+      }
 
-    const permission = res.rows[0];
-    const permissionDetail: PermissionDetailResponse = {
-      id: permission.id,
-      name: permission.data.name,
-      code: permission.data.code,
-      description: permission.data.description,
-      type: permission.data.type,
-      created_at: permission.created_at.toJSON(),
-      updated_at: permission.updated_at.toJSON(),
-    };
+      const permission = res.rows[0];
+      const permissionDetail: PermissionDetailResponse = {
+        id: permission.id,
+        name: permission.data.name,
+        code: permission.data.code,
+        resource: permission.data.resource,
+        description: permission.data.description,
+        type: permission.data.type,
+        created_at: permission.created_at.toJSON(),
+        updated_at: permission.updated_at.toJSON(),
+      };
 
-    return c.json({ code: 200, msg: "success", data: permissionDetail });
-  })
+      return c.json({ code: 200, msg: "success", data: permissionDetail });
+    },
+  )
   // 更新权限
   .put(
     "/:id",
@@ -116,10 +120,10 @@ export const permissionApp = new Hono()
       }
 
       const existingPermission = existingPermissionResult.rows[0];
-      
-      // 如果是系统权限，不允许修改
+
+      // 如果是系统内置权限，不允许修改
       if (existingPermission.data.type === "system") {
-        return c.json({ code: 403, msg: "系统权限不允许修改，请通过代码进行更新", data: null });
+        return c.json({ code: 403, msg: "系统内置权限不允许修改，请通过代码进行更新", data: null });
       }
 
       // 如果更新权限代码，检查是否与其他权限重复
@@ -137,7 +141,7 @@ export const permissionApp = new Hono()
 
       // 合并现有数据和更新数据
       const mergedData = { ...existingPermission.data, ...updateData };
-      
+
       const updateQuery: pg.QueryConfig = {
         text: `UPDATE permission SET data = $1 WHERE id = $2`,
         values: [mergedData, id],
@@ -148,38 +152,40 @@ export const permissionApp = new Hono()
     },
   )
   // 删除权限
-  .delete("/:id", 
+  .delete(
+    "/:id",
     createPermissionMiddleware("permission:delete"),
-    zValidator("param", z.object({ id: z.string() }), validateFailHandler), 
+    zValidator("param", z.object({ id: z.string() }), validateFailHandler),
     async c => {
-    const { id } = c.req.valid("param");
+      const { id } = c.req.valid("param");
 
-    // 检查权限是否存在及类型
-    const permissionCheck: pg.QueryConfig = {
-      text: `SELECT id, data FROM permission WHERE id = $1`,
-      values: [id],
-    };
-    const existingPermissionResult = await c.var.pool.query(permissionCheck);
+      // 检查权限是否存在及类型
+      const permissionCheck: pg.QueryConfig = {
+        text: `SELECT id, data FROM permission WHERE id = $1`,
+        values: [id],
+      };
+      const existingPermissionResult = await c.var.pool.query(permissionCheck);
 
-    if (existingPermissionResult.rows.length === 0) {
-      return c.json({ code: 404, msg: "权限不存在", data: null });
-    }
+      if (existingPermissionResult.rows.length === 0) {
+        return c.json({ code: 404, msg: "权限不存在", data: null });
+      }
 
-    const existingPermission = existingPermissionResult.rows[0];
-    
-    // 如果是系统权限，不允许删除
-    if (existingPermission.data.type === "system") {
-      return c.json({ code: 403, msg: "系统权限不允许删除", data: null });
-    }
+      const existingPermission = existingPermissionResult.rows[0];
 
-    const deleteQuery: pg.QueryConfig = {
-      text: `DELETE FROM permission WHERE id = $1`,
-      values: [id],
-    };
-    const res = await c.var.pool.query(deleteQuery);
+      // 如果是系统内置权限，不允许删除
+      if (existingPermission.data.type === "system") {
+        return c.json({ code: 403, msg: "系统内置权限不允许删除", data: null });
+      }
 
-    return c.json({ code: 200, msg: "删除成功", data: res.rowCount });
-  })
+      const deleteQuery: pg.QueryConfig = {
+        text: `DELETE FROM permission WHERE id = $1`,
+        values: [id],
+      };
+      const res = await c.var.pool.query(deleteQuery);
+
+      return c.json({ code: 200, msg: "删除成功", data: res.rowCount });
+    },
+  )
   // 分页获取权限列表
   .post(
     "/page",
@@ -215,7 +221,7 @@ export const permissionApp = new Hono()
         countValues.push(`%${code}%`);
         paramIndex++;
       }
-      
+
       if (type) {
         queryText += ` AND data->>'type' = $${paramIndex}`;
         countValues.push(type);
@@ -240,7 +246,7 @@ export const permissionApp = new Hono()
         listValues.push(`%${code}%`);
         paramIndex++;
       }
-      
+
       if (type) {
         listQueryText += ` AND data->>'type' = $${paramIndex}`;
         listValues.push(type);
@@ -256,6 +262,7 @@ export const permissionApp = new Hono()
         id: permission.id,
         name: permission.data.name,
         code: permission.data.code,
+        resource: permission.data.resource,
         description: permission.data.description,
         type: permission.data.type,
         created_at: permission.created_at.toJSON(),

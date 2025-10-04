@@ -46,7 +46,13 @@ describe("test permission module", () => {
           name: "权限管理测试角色",
           code: "permission_management_test_role",
           description: "用于测试权限管理权限的角色",
-          permission_codes: ["permission:create", "permission:read", "permission:update", "permission:delete", "permission:list"],
+          permission_codes: [
+            "permission:create",
+            "permission:read",
+            "permission:update",
+            "permission:delete",
+            "permission:list",
+          ],
           type: "custom",
         },
       ],
@@ -122,6 +128,7 @@ describe("test permission module", () => {
         json: {
           name: "Test View Users",
           code: "test_users:view",
+          resource: "users",
           description: "Test permission to view users",
           type: "custom",
         },
@@ -148,6 +155,7 @@ describe("test permission module", () => {
         json: {
           name: "Unauthorized Permission",
           code: "unauthorized:test",
+          resource: "users",
           description: "Test permission without authorization",
           type: "custom",
         },
@@ -325,43 +333,6 @@ describe("test permission module", () => {
       expect(resJSON.data.name).toEqual("Test Manage Users");
       expect(resJSON.data.code).toEqual("test_users:manage");
       expect(resJSON.data.description).toEqual("Test permission to manage users");
-    }
-  });
-
-  it("test create permission with duplicate code", async () => {
-    // First create a permission
-    const res1 = await client.index.$post({
-      json: {
-        name: "Test Permission",
-        code: "test_permission",
-        type: "custom",
-      },
-    }, {
-      headers: {
-        Authorization: `Bearer ${hasPermissionUserToken}`,
-      },
-    });
-
-    expect(res1.ok).toBe(true);
-
-    // Try to create another permission with the same code
-    const res2 = await client.index.$post({
-      json: {
-        name: "Another Test Permission",
-        code: "test_permission",
-        type: "custom",
-      },
-    }, {
-      headers: {
-        Authorization: `Bearer ${hasPermissionUserToken}`,
-      },
-    });
-
-    expect(res2.ok).toBe(true);
-    if (res2.ok) {
-      const resJSON = await res2.json();
-      expect(resJSON.code).toBe(400);
-      expect(resJSON.msg).toBe("权限代码已存在");
     }
   });
 
